@@ -56,6 +56,8 @@ export function OrgProvider({ children }: { children: ReactNode }) {
 
       if (fetchError) throw fetchError;
 
+      console.log('Fetched memberships:', data);
+      
       const orgs = data?.map((membership: any) => ({
         id: membership.organization.id,
         name: membership.organization.name,
@@ -63,6 +65,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
         role: membership.role,
       })) || [];
 
+      console.log('Processed orgs:', orgs);
       setOrganizations(orgs);
       
       // Auto-select first org if none selected
