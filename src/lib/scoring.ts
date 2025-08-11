@@ -20,13 +20,6 @@ export interface BridgeSellingScore {
 
 export function scoreBridgeSelling(transcript: string): BridgeSellingScore {
   const text = transcript.toLowerCase();
-  
-  // Helper function to get color from credit
-  const getColor = (credit: ScoreCredit): ScoreColor => {
-    if (credit === 1) return 'green';
-    if (credit === 0.5) return 'yellow';
-    return 'red';
-  };
 
   // Step 1: Pinpoint Pain (weight: 5)
   const pinpointPain = scorePinpointPain(text);
