@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { FLAGS } from '../lib/flags';
 import OrgSwitcher from './OrgSwitcher';
 
 export default function TopNav() {
@@ -22,12 +23,22 @@ export default function TopNav() {
           </div>
           <div className="hidden md:flex items-center space-x-8">
             {user && (
-              <Link
-                to="/dashboard"
-                className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Dashboard
-              </Link>
+              <>
+                <Link
+                  to="/dashboard"
+                  className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  Dashboard
+                </Link>
+                {FLAGS.ASSISTANTS && (
+                  <Link
+                    to="/admin/assistants"
+                    className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                  >
+                    AI Assistants
+                  </Link>
+                )}
+              </>
             )}
             {user ? (
               <div className="flex items-center space-x-4">

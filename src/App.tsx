@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CallDetail from './pages/CallDetail';
 import Demo from './pages/Demo';
+import Assistants from './pages/admin/Assistants';
 
 function App() {
   return (
@@ -35,6 +36,14 @@ function App() {
                 }
               />
               <Route path="/demo/:shareId" element={<Demo />} />
+              <Route
+                path="/admin/assistants"
+                element={
+                  <AuthGate>
+                    <Assistants />
+                  </AuthGate>
+                }
+              />
               <Route
                 path="/"
                 element={
