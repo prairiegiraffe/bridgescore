@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import CallDetail from './pages/CallDetail';
 import Demo from './pages/Demo';
 import Assistants from './pages/admin/Assistants';
+import Team from './pages/Team';
 
 function App() {
   return (
@@ -41,6 +42,14 @@ function App() {
                 element={
                   <AuthGate>
                     <Assistants />
+                  </AuthGate>
+                }
+              />
+              <Route
+                path="/team"
+                element={
+                  <AuthGate>
+                    <Team />
                   </AuthGate>
                 }
               />

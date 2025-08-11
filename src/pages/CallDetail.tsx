@@ -4,6 +4,9 @@ import { supabase } from '../lib/supabase';
 import type { BridgeSellingScore } from '../lib/scoring';
 import { usePivots } from '../hooks/usePivots';
 import { useOrg } from '../contexts/OrgContext';
+import { useAuth } from '../contexts/AuthContext';
+import { FLAGS } from '../lib/flags';
+import CoachingTaskModal from '../components/CoachingTaskModal';
 
 interface CallData {
   id: string;
@@ -12,19 +15,46 @@ interface CallData {
   score_total: number;
   score_breakdown: BridgeSellingScore;
   created_at: string;
+  user_id: string;
 }
 
 export default function CallDetail() {
   const { id } = useParams<{ id: string }>();
-  const { currentOrg: _currentOrg } = useOrg();
+  const { user } = useAuth();
+  const { currentOrg } = useOrg();
   const [call, setCall] = useState<CallData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'scorecard' | 'coaching' | 'transcript'>('scorecard');
+  const [memberRole, setMemberRole] = useState<string | null>(null);
+  const [showCoachingModal, setShowCoachingModal] = useState(false);
 
   useEffect(() => {
     fetchCall();
   }, [id]);
+
+  // Check user's role in org
+  useEffect(() => {
+    checkUserRole();
+  }, [user, currentOrg]);
+
+  const checkUserRole = async () => {
+    if (!user || !currentOrg) return;
+
+    try {
+      const { data, error } = await (supabase as any)
+        .from('memberships')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('org_id', currentOrg.id)
+        .single();
+
+      if (error) throw error;
+      setMemberRole(data?.role || null);
+    } catch (err) {
+      console.error('Error checking role:', err);
+    }
+  };
 
   const fetchCall = async () => {
     if (!id) return;
@@ -104,6 +134,55 @@ export default function CallDetail() {
 
   const { strengths, improvements } = getCoachingAnalysis();
 
+  // Team action functions
+  const handleSendToReview = async () => {
+    if (!call || !currentOrg || !user || memberRole !== 'owner' && memberRole !== 'admin') return;
+
+    try {
+      const { error } = await (supabase as any)
+        .from('review_queue')
+        .insert({
+          org_id: currentOrg.id,
+          call_id: call.id,
+          status: 'new'
+        });
+
+      if (error) throw error;
+      alert('Call sent to review queue successfully!');
+    } catch (err: any) {
+      if (err.code === '23505') { // Unique constraint violation
+        alert('This call is already in the review queue.');
+      } else {
+        console.error('Error sending to review:', err);
+        alert('Failed to send call to review queue.');
+      }
+    }
+  };
+
+  const handleCreateCoachingTask = async (stepKey: string, dueDate: string) => {
+    if (!call || !currentOrg || !user || memberRole !== 'owner' && memberRole !== 'admin') return;
+
+    try {
+      const { error } = await (supabase as any)
+        .from('coaching_tasks')
+        .insert({
+          org_id: currentOrg.id,
+          rep_user_id: call.user_id,
+          call_id: call.id,
+          step_key: stepKey,
+          status: 'todo',
+          due_date: dueDate || null
+        });
+
+      if (error) throw error;
+      alert('Coaching task created successfully!');
+      setShowCoachingModal(false);
+    } catch (err) {
+      console.error('Error creating coaching task:', err);
+      alert('Failed to create coaching task.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -140,8 +219,27 @@ export default function CallDetail() {
       <div className="bg-white shadow rounded-lg p-6 mb-6">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">Overall Score</h2>
-          <div className="text-3xl font-bold text-blue-600">
-            {call.score_total}/20
+          <div className="flex items-center space-x-4">
+            <div className="text-3xl font-bold text-blue-600">
+              {call.score_total}/20
+            </div>
+            {/* Team Actions */}
+            {FLAGS.TEAM_BOARDS && (memberRole === 'owner' || memberRole === 'admin') && (
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleSendToReview}
+                  className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                >
+                  Send to Review
+                </button>
+                <button
+                  onClick={() => setShowCoachingModal(true)}
+                  className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                >
+                  Create Task
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -236,6 +334,15 @@ export default function CallDetail() {
           )}
         </div>
       </div>
+
+      {/* Coaching Task Modal */}
+      {showCoachingModal && (
+        <CoachingTaskModal
+          onClose={() => setShowCoachingModal(false)}
+          onCreate={handleCreateCoachingTask}
+          stepLabels={stepLabels}
+        />
+      )}
     </div>
   );
 }
