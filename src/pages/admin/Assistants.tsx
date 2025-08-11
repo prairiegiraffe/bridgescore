@@ -91,35 +91,49 @@ export default function Assistants() {
   };
 
   const fetchAssistantData = async () => {
-    if (!currentOrg) return;
+    if (!currentOrg) {
+      console.log('No currentOrg available');
+      return;
+    }
     
+    console.log('Fetching assistant data for org:', currentOrg.id);
     setLoading(true);
     try {
       // Fetch org AI config
-      const { data: configData } = await (supabase as any)
+      const { data: configData, error: configError } = await (supabase as any)
         .from('org_ai_configs')
         .select('*')
         .eq('org_id', currentOrg.id)
         .single();
       
+      if (configError && configError.code !== 'PGRST116') {
+        console.error('Config fetch error:', configError);
+      }
       setConfig(configData);
 
       // Fetch assistant versions
-      const { data: versionsData } = await (supabase as any)
+      const { data: versionsData, error: versionsError } = await (supabase as any)
         .from('ai_assistant_versions')
         .select('*')
         .eq('org_id', currentOrg.id)
         .order('created_at', { ascending: false });
       
+      if (versionsError) {
+        console.error('Versions fetch error:', versionsError);
+      }
+      console.log('Fetched versions:', versionsData);
       setVersions(versionsData || []);
 
       // Fetch knowledge packs
-      const { data: packsData } = await (supabase as any)
+      const { data: packsData, error: packsError } = await (supabase as any)
         .from('ai_knowledge_packs')
         .select('*')
         .eq('org_id', currentOrg.id)
         .order('updated_at', { ascending: false });
       
+      if (packsError) {
+        console.error('Packs fetch error:', packsError);
+      }
       setKnowledgePacks(packsData || []);
     } catch (err) {
       console.error('Error fetching assistant data:', err);
@@ -369,21 +383,30 @@ function CreateVersionModal({ onClose, onCreated }: { onClose: () => void; onCre
 
     setSaving(true);
     try {
-      const { error } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from('ai_assistant_versions')
         .insert({
           org_id: currentOrg.id,
           label: label.trim(),
           model,
-          system_prompt: systemPrompt.trim(),
+          system_prompt: systemPrompt.trim() || null,
           tool_flags: tools,
-        });
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Insert error:', error);
+        alert(`Error creating version: ${error.message}`);
+        throw error;
+      }
+      
+      console.log('Created version:', data);
       onCreated();
       onClose();
     } catch (err) {
       console.error('Error creating version:', err);
+      // Don't close modal on error
     } finally {
       setSaving(false);
     }
