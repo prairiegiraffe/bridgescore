@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import OrgSwitcher from './OrgSwitcher';
 
 export default function TopNav() {
   const { user, signOut } = useAuth();
@@ -30,6 +31,7 @@ export default function TopNav() {
             )}
             {user ? (
               <div className="flex items-center space-x-4">
+                <OrgSwitcher />
                 <span className="text-sm text-gray-500">{user.email}</span>
                 <button
                   onClick={handleSignOut}

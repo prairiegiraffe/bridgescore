@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { OrgProvider } from './contexts/OrgContext';
 import TopNav from './components/TopNav';
 import AuthGate from './components/AuthGate';
 import Login from './pages/Login';
@@ -10,10 +11,11 @@ import Demo from './pages/Demo';
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <div className="min-h-screen bg-gray-50">
-          <TopNav />
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      <OrgProvider>
+        <BrowserRouter>
+          <div className="min-h-screen bg-gray-50">
+            <TopNav />
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route
@@ -43,8 +45,9 @@ function App() {
               />
             </Routes>
           </div>
-        </div>
-      </BrowserRouter>
+          </div>
+        </BrowserRouter>
+      </OrgProvider>
     </AuthProvider>
   );
 }

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrg } from '../contexts/OrgContext';
 import { supabase } from '../lib/supabase';
 import { scoreBridgeSelling } from '../lib/scoring';
+import { FLAGS } from '../lib/flags';
 
 interface Call {
   id: string;
@@ -20,23 +22,33 @@ export default function Dashboard() {
   const [callsLoading, setCallsLoading] = useState(true);
   
   const { user } = useAuth();
+  const { currentOrg } = useOrg();
   const navigate = useNavigate();
 
   // Fetch recent calls
   useEffect(() => {
     fetchRecentCalls();
-  }, [user]);
+  }, [user, currentOrg]);
 
   const fetchRecentCalls = async () => {
     if (!user) return;
     
     try {
-      const { data, error } = await (supabase as any)
+      let query = (supabase as any)
         .from('calls')
         .select('id, title, score_total, created_at')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
+
+      if (FLAGS.ORGS && currentOrg) {
+        // Org-scoped: only calls from current org
+        query = query.eq('org_id', currentOrg.id);
+      } else {
+        // Legacy: personal calls only
+        query = query.eq('user_id', user.id).is('org_id', null);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setRecentCalls(data || []);
@@ -59,15 +71,18 @@ export default function Dashboard() {
       const score = scoreBridgeSelling(transcript);
 
       // Insert into database
+      const callData = {
+        user_id: user?.id,
+        title: title.trim() || 'Untitled Call',
+        transcript: transcript.trim(),
+        score_total: score.total,
+        score_breakdown: score,
+        ...(FLAGS.ORGS && currentOrg && { org_id: currentOrg.id }),
+      };
+
       const { data, error: insertError } = await (supabase as any)
         .from('calls')
-        .insert({
-          user_id: user?.id,
-          title: title.trim() || 'Untitled Call',
-          transcript: transcript.trim(),
-          score_total: score.total,
-          score_breakdown: score,
-        })
+        .insert(callData)
         .select()
         .single();
 

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { BridgeSellingScore } from '../lib/scoring';
 import { usePivots } from '../hooks/usePivots';
+import { useOrg } from '../contexts/OrgContext';
 
 interface CallData {
   id: string;
@@ -15,6 +16,7 @@ interface CallData {
 
 export default function CallDetail() {
   const { id } = useParams<{ id: string }>();
+  const { currentOrg } = useOrg();
   const [call, setCall] = useState<CallData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
