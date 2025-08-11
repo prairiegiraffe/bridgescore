@@ -1,10 +1,10 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { createContext, useContext, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: any | null;
+  session: any | null;
   loading: boolean;
   signInWithOtp: (email: string) => Promise<{ error: any }>;
   signOut: () => Promise<{ error: any }>;
@@ -13,13 +13,13 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<any | null>(null);
+  const [session, setSession] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    (supabase.auth as any).getSession().then(({ data: { session } }: any) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -28,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = (supabase.auth as any).onAuthStateChange((_event: any, session: any) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithOtp = async (email: string) => {
-    return await supabase.auth.signInWithOtp({
+    return await (supabase.auth as any).signInWithOtp({
       email,
       options: {
         emailRedirectTo: `${window.location.origin}/dashboard`,
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    return await supabase.auth.signOut();
+    return await (supabase.auth as any).signOut();
   };
 
   const value: AuthContextType = {
