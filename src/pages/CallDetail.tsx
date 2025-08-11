@@ -16,7 +16,7 @@ interface CallData {
 
 export default function CallDetail() {
   const { id } = useParams<{ id: string }>();
-  const { currentOrg } = useOrg();
+  const { currentOrg: _currentOrg } = useOrg();
   const [call, setCall] = useState<CallData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

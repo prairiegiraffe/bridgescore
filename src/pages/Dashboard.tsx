@@ -71,14 +71,17 @@ export default function Dashboard() {
       const score = scoreBridgeSelling(transcript);
 
       // Insert into database
-      const callData = {
+      const baseCallData = {
         user_id: user?.id,
         title: title.trim() || 'Untitled Call',
         transcript: transcript.trim(),
         score_total: score.total,
         score_breakdown: score,
-        ...(FLAGS.ORGS && currentOrg && { org_id: currentOrg.id }),
       };
+
+      const callData = FLAGS.ORGS && currentOrg 
+        ? { ...baseCallData, org_id: currentOrg.id }
+        : baseCallData;
 
       const { data, error: insertError } = await (supabase as any)
         .from('calls')
