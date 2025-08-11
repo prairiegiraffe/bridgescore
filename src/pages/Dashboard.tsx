@@ -5,6 +5,7 @@ import { useOrg } from '../contexts/OrgContext';
 import { supabase } from '../lib/supabase';
 import { scoreBridgeSelling } from '../lib/scoring';
 import { FLAGS } from '../lib/flags';
+import { getActiveAssistantVersion } from '../lib/assistants';
 
 interface Call {
   id: string;
@@ -72,6 +73,13 @@ export default function Dashboard() {
     try {
       // Score the transcript
       const score = scoreBridgeSelling(transcript);
+      
+      // Get active assistant version if org is enabled
+      let assistantVersionId = null;
+      if (FLAGS.ORGS && currentOrg) {
+        const activeVersion = await getActiveAssistantVersion(currentOrg.id);
+        assistantVersionId = activeVersion?.id || null;
+      }
 
       // Insert into database
       const baseCallData = {
@@ -80,6 +88,8 @@ export default function Dashboard() {
         transcript: transcript.trim(),
         score_total: score.total,
         score_breakdown: score,
+        framework_version: '1.0',
+        assistant_version_id: assistantVersionId,
       };
 
       const callData = FLAGS.ORGS && currentOrg 

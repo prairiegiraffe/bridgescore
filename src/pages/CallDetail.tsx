@@ -7,6 +7,8 @@ import { useOrg } from '../contexts/OrgContext';
 import { useAuth } from '../contexts/AuthContext';
 import { FLAGS } from '../lib/flags';
 import CoachingTaskModal from '../components/CoachingTaskModal';
+import { getAssistantVersions, type AssistantVersion } from '../lib/assistants';
+import { scoreBridgeSelling } from '../lib/scoring';
 
 interface CallData {
   id: string;
@@ -16,6 +18,12 @@ interface CallData {
   score_breakdown: BridgeSellingScore;
   created_at: string;
   user_id: string;
+  framework_version?: string;
+  assistant_version_id?: string;
+  assistant_version?: {
+    name: string;
+    version: string;
+  };
 }
 
 export default function CallDetail() {
@@ -28,6 +36,9 @@ export default function CallDetail() {
   const [activeTab, setActiveTab] = useState<'scorecard' | 'coaching' | 'transcript'>('scorecard');
   const [memberRole, setMemberRole] = useState<string | null>(null);
   const [showCoachingModal, setShowCoachingModal] = useState(false);
+  const [showRescoreMenu, setShowRescoreMenu] = useState(false);
+  const [assistantVersions, setAssistantVersions] = useState<AssistantVersion[]>([]);
+  const [rescoring, setRescoring] = useState(false);
 
   useEffect(() => {
     fetchCall();
@@ -37,6 +48,25 @@ export default function CallDetail() {
   useEffect(() => {
     checkUserRole();
   }, [user, currentOrg]);
+
+  // Fetch assistant versions when needed
+  useEffect(() => {
+    if (showRescoreMenu && currentOrg && (memberRole === 'owner' || memberRole === 'admin')) {
+      fetchAssistantVersions();
+    }
+  }, [showRescoreMenu, currentOrg, memberRole]);
+
+  // Close rescore menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showRescoreMenu && !(event.target as Element).closest('.relative')) {
+        setShowRescoreMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showRescoreMenu]);
 
   const checkUserRole = async () => {
     if (!user || !currentOrg) return;
@@ -56,13 +86,27 @@ export default function CallDetail() {
     }
   };
 
+  const fetchAssistantVersions = async () => {
+    if (!currentOrg) return;
+
+    try {
+      const versions = await getAssistantVersions(currentOrg.id);
+      setAssistantVersions(versions);
+    } catch (err) {
+      console.error('Error fetching assistant versions:', err);
+    }
+  };
+
   const fetchCall = async () => {
     if (!id) return;
 
     try {
       const { data, error: fetchError } = await (supabase as any)
         .from('calls')
-        .select('*')
+        .select(`
+          *,
+          assistant_version:ai_assistant_versions(name, version)
+        `)
         .eq('id', id)
         .single();
 
@@ -183,6 +227,43 @@ export default function CallDetail() {
     }
   };
 
+  const handleRescore = async (assistantVersionId: string) => {
+    if (!call || !currentOrg || !user || memberRole !== 'owner' && memberRole !== 'admin') return;
+
+    setRescoring(true);
+    try {
+      // Re-run the scoring function
+      const newScore = scoreBridgeSelling(call.transcript);
+      
+      // Find the selected version details
+      const selectedVersion = assistantVersions.find(v => v.id === assistantVersionId);
+      
+      // Update the call with new score and version info
+      const { error } = await (supabase as any)
+        .from('calls')
+        .update({
+          score_total: newScore.total,
+          score_breakdown: newScore,
+          assistant_version_id: assistantVersionId,
+          framework_version: '1.0'
+        })
+        .eq('id', call.id);
+
+      if (error) throw error;
+      
+      // Refresh the call data to show updated scores and chips
+      await fetchCall();
+      
+      alert(`Call rescored successfully with ${selectedVersion?.name} v${selectedVersion?.version}!`);
+      setShowRescoreMenu(false);
+    } catch (err) {
+      console.error('Error rescoring call:', err);
+      alert('Failed to rescore call. Please try again.');
+    } finally {
+      setRescoring(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -212,7 +293,21 @@ export default function CallDetail() {
           ← Back to Dashboard
         </Link>
         <h1 className="text-3xl font-bold text-gray-900">{call.title}</h1>
-        <p className="text-gray-500">{formatDate(call.created_at)}</p>
+        <div className="flex items-center space-x-4 mt-2">
+          <p className="text-gray-500">{formatDate(call.created_at)}</p>
+          
+          {/* Version Chips */}
+          <div className="flex items-center space-x-2">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              Framework v{call.framework_version || '1.0'}
+            </span>
+            {call.assistant_version && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                {call.assistant_version.name} v{call.assistant_version.version}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Score Summary */}
@@ -223,21 +318,65 @@ export default function CallDetail() {
             <div className="text-3xl font-bold text-blue-600">
               {call.score_total}/20
             </div>
-            {/* Team Actions */}
-            {FLAGS.TEAM_BOARDS && (memberRole === 'owner' || memberRole === 'admin') && (
+            {/* Admin Actions */}
+            {(memberRole === 'owner' || memberRole === 'admin') && (
               <div className="flex space-x-2">
-                <button
-                  onClick={handleSendToReview}
-                  className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
-                >
-                  Send to Review
-                </button>
-                <button
-                  onClick={() => setShowCoachingModal(true)}
-                  className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
-                >
-                  Create Task
-                </button>
+                {FLAGS.TEAM_BOARDS && (
+                  <>
+                    <button
+                      onClick={handleSendToReview}
+                      className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                    >
+                      Send to Review
+                    </button>
+                    <button
+                      onClick={() => setShowCoachingModal(true)}
+                      className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                    >
+                      Create Task
+                    </button>
+                  </>
+                )}
+                {FLAGS.RESCORE_WITH_VERSION && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowRescoreMenu(!showRescoreMenu)}
+                      className="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700"
+                      disabled={rescoring}
+                    >
+                      {rescoring ? 'Rescoring...' : 'Re-score'}
+                    </button>
+                    
+                    {/* Re-score Menu */}
+                    {showRescoreMenu && (
+                      <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                        <div className="py-1">
+                          <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-200">
+                            Select Assistant Version
+                          </div>
+                          {assistantVersions.map(version => (
+                            <button
+                              key={version.id}
+                              onClick={() => handleRescore(version.id)}
+                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                              disabled={rescoring}
+                            >
+                              {version.name} v{version.version}
+                              {version.is_active && (
+                                <span className="ml-2 text-xs text-green-600">(Active)</span>
+                              )}
+                            </button>
+                          ))}
+                          {assistantVersions.length === 0 && (
+                            <div className="px-4 py-2 text-sm text-gray-500">
+                              No assistant versions available
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
