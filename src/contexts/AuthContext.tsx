@@ -38,10 +38,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithOtp = async (email: string) => {
+    // Use the current domain (works for both localhost and production)
+    const redirectTo = `${window.location.origin}/dashboard`;
+    
     return await (supabase.auth as any).signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
+        emailRedirectTo: redirectTo,
       },
     });
   };
