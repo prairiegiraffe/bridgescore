@@ -43,6 +43,9 @@ export default function Dashboard() {
       if (FLAGS.ORGS && currentOrg) {
         // Org-scoped: only calls from current org
         query = query.eq('org_id', currentOrg.id);
+      } else if (FLAGS.ORGS) {
+        // Orgs enabled but no current org selected - show all user's calls
+        query = query.eq('user_id', user.id);
       } else {
         // Legacy: personal calls only
         query = query.eq('user_id', user.id).is('org_id', null);
