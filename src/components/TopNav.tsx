@@ -1,10 +1,12 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { FLAGS } from '../lib/flags';
+import { useSuperAdmin } from '../hooks/useSuperAdmin';
 import OrgSwitcher from './OrgSwitcher';
 
 export default function TopNav() {
   const { user, signOut } = useAuth();
+  const { isSuperAdmin } = useSuperAdmin();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -30,6 +32,14 @@ export default function TopNav() {
                 >
                   Dashboard
                 </Link>
+                {isSuperAdmin && (
+                  <Link
+                    to="/admin/clients"
+                    className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                  >
+                    Client Management
+                  </Link>
+                )}
                 {FLAGS.ASSISTANTS && (
                   <Link
                     to="/admin/assistants"

@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import CallDetail from './pages/CallDetail';
 import Demo from './pages/Demo';
 import Assistants from './pages/admin/Assistants';
+import ClientManagement from './pages/admin/ClientManagement';
 import Team from './pages/Team';
 import Settings from './pages/Settings';
 
@@ -43,6 +44,14 @@ function App() {
                 element={
                   <AuthGate>
                     <Assistants />
+                  </AuthGate>
+                }
+              />
+              <Route
+                path="/admin/clients"
+                element={
+                  <AuthGate>
+                    <ClientManagement />
                   </AuthGate>
                 }
               />

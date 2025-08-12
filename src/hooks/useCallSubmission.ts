@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { scoreCall, updateCallWithScore } from '../lib/callScoring';
+import { scoreCall, updateCallWithScore } from '../lib/newCallScoring';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 
@@ -39,32 +39,12 @@ export function useCallSubmission() {
 
       if (insertError) throw insertError;
 
-      // Get the org ID for scoring
-      let orgId: string;
-      if (currentOrg) {
-        orgId = currentOrg.id;
-      } else {
-        // Fallback: get the user's first org
-        const { data: membership } = await (supabase as any)
-          .from('memberships')
-          .select('org_id')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (membership?.org_id) {
-          orgId = membership.org_id;
-        } else {
-          // If no org, use a default org ID or create a personal org
-          orgId = user.id; // Use user ID as a fallback org ID
-        }
-      }
-
-      // Score the call (will use OpenAI if configured)
+      // Score the call (will use OpenAI if client is configured)
       const scoreResult = await scoreCall({
         callId: call.id,
         transcript: data.transcript,
-        orgId,
-        userId: user.id
+        userId: user.id,
+        orgId: currentOrg?.id
       });
 
       // Update the call with the score

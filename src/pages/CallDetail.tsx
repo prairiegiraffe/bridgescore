@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { FLAGS } from '../lib/flags';
 import CoachingTaskModal from '../components/CoachingTaskModal';
 import { getAssistantVersions, type AssistantVersion } from '../lib/assistants';
-import { rescoreCall } from '../lib/callScoring';
+import { rescoreCall } from '../lib/newCallScoring';
 
 interface CallData {
   id: string;
@@ -249,8 +249,8 @@ export default function CallDetail() {
       // Find the selected version details
       const selectedVersion = assistantVersions.find(v => v.id === assistantVersionId);
       
-      // Use the new rescoreCall function which handles OpenAI integration
-      await rescoreCall(call.id, assistantVersionId);
+      // Use the new rescoreCall function which handles client-based OpenAI integration
+      await rescoreCall(call.id);
       
       // Refresh the call data to show updated scores and chips
       await fetchCall();
