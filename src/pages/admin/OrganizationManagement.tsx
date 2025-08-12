@@ -106,28 +106,19 @@ export default function OrganizationManagement() {
   const fetchOrgUsers = async (orgId: string) => {
     try {
       const { data, error } = await (supabase as any)
-        .from('memberships')
-        .select(`
-          role,
-          is_superadmin,
-          profiles:profiles(
-            id,
-            email,
-            full_name,
-            created_at
-          )
-        `)
+        .from('membership_with_profiles')
+        .select('*')
         .eq('org_id', orgId);
 
       if (error) throw error;
       
-      const users = data?.map((membership: any) => ({
-        id: membership.profiles.id,
-        email: membership.profiles.email,
-        full_name: membership.profiles.full_name,
-        role: membership.role,
-        is_superadmin: membership.is_superadmin,
-        created_at: membership.profiles.created_at
+      const users = data?.map((row: any) => ({
+        id: row.user_id,
+        email: row.email,
+        full_name: row.full_name,
+        role: row.role,
+        is_superadmin: row.is_superadmin,
+        created_at: row.created_at
       })) || [];
 
       setSelectedOrgUsers(users);
