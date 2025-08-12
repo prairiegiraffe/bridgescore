@@ -143,7 +143,7 @@ export default function OrganizationManagement() {
     primary_color: string;
   }) => {
     try {
-      const { data, error } = await (supabase as any)
+      const { error } = await (supabase as any)
         .rpc('create_organization_as_superadmin', {
           org_name: orgData.name,
           org_domain: orgData.domain,
