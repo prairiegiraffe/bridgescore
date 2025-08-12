@@ -15,7 +15,15 @@ interface CallData {
   title: string;
   transcript: string;
   score_total: number;
-  score_breakdown: BridgeSellingScore;
+  score_breakdown: any; // Will be either old BridgeSellingScore or new OpenAI stepScores array
+  coaching?: {
+    thingsTheyDidWell: string[];
+    areasForImprovement: Array<{
+      area: string;
+      howToImprove: string;
+      bridgeStep: string;
+    }>;
+  };
   created_at: string;
   user_id: string;
   framework_version?: string;
@@ -28,7 +36,7 @@ interface CallData {
   client_id?: string;
   openai_thread_id?: string;
   openai_run_id?: string;
-  openai_raw_response?: string;
+  openai_raw_response?: any;
 }
 
 export default function CallDetail() {
@@ -175,14 +183,11 @@ export default function CallDetail() {
   const getCoachingAnalysis = () => {
     if (!call) return { strengths: [], improvements: [] };
 
-    const steps = Object.entries(call.score_breakdown)
-      .filter(([key]) => key !== 'total')
-      .map(([key, step]: [string, any]) => ({
-        key,
-        name: stepLabels[key as keyof typeof stepLabels],
-        ...step,
-      }))
-      .sort((a, b) => b.credit - a.credit);
+    const steps = renderScoreBreakdown().map(({ key, step, stepName }) => ({
+      key,
+      name: stepName,
+      ...step,
+    })).sort((a, b) => b.credit - a.credit);
 
     const strengths = steps
       .filter(step => step.credit >= 0.5)
@@ -193,6 +198,29 @@ export default function CallDetail() {
       .slice(0, 3);
 
     return { strengths, improvements };
+  };
+
+  // Render score breakdown for both old and new formats
+  const renderScoreBreakdown = () => {
+    if (!call) return [];
+    
+    // New OpenAI format (array of stepScores)
+    if (Array.isArray(call.score_breakdown)) {
+      return call.score_breakdown.map((stepScore: any) => ({
+        key: stepScore.step,
+        step: stepScore,
+        stepName: stepScore.stepName
+      }));
+    }
+    
+    // Old format (object with keys)
+    return Object.entries(call.score_breakdown)
+      .filter(([key]) => key !== 'total')
+      .map(([key, step]: [string, any]) => ({
+        key,
+        step,
+        stepName: stepLabels[key as keyof typeof stepLabels]
+      }));
   };
 
   const { strengths, improvements } = getCoachingAnalysis();
@@ -448,14 +476,11 @@ export default function CallDetail() {
                 Bridge Selling Scorecard
               </h3>
               
-              {Object.entries(call.score_breakdown).map(([key, value]) => {
-                if (key === 'total') return null;
-                
-                const step = value as any;
-                const stepName = stepLabels[key as keyof typeof stepLabels];
+              {renderScoreBreakdown().map((stepData, index) => {
+                const { key, step, stepName } = stepData;
                 
                 return (
-                  <div key={key} className="border border-gray-200 rounded-lg p-4">
+                  <div key={key || index} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-medium text-gray-900">{stepName}</h4>
                       <div className="flex items-center space-x-2">
@@ -470,6 +495,12 @@ export default function CallDetail() {
                       </div>
                     </div>
                     <p className="text-sm text-gray-600">{step.notes}</p>
+                    {step.reasoning && (
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">AI Reasoning</h5>
+                        <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">{step.reasoning}</p>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -477,7 +508,13 @@ export default function CallDetail() {
           )}
 
           {activeTab === 'coaching' && (
-            <CoachingTab strengths={strengths} improvements={improvements} />
+            <div>
+              {call.coaching ? (
+                <AICoachingTab coaching={call.coaching} />
+              ) : (
+                <CoachingTab strengths={strengths} improvements={improvements} />
+              )}
+            </div>
           )}
 
           {activeTab === 'transcript' && (
@@ -727,6 +764,77 @@ function PivotSuggestions({ stepKey, stepName }: PivotSuggestionsProps) {
           +{pivots.length - 3} more suggestions available
         </p>
       )}
+    </div>
+  );
+}
+// AI Coaching Tab Component
+interface AICoachingTabProps {
+  coaching: {
+    thingsTheyDidWell: string[];
+    areasForImprovement: Array<{
+      area: string;
+      howToImprove: string;
+      bridgeStep: string;
+    }>;
+  };
+}
+
+function AICoachingTab({ coaching }: AICoachingTabProps) {
+  return (
+    <div>
+      <h3 className="text-lg font-semibold text-gray-900 mb-6">AI Coaching Feedback</h3>
+      
+      {/* Things They Did Well */}
+      <div className="mb-8">
+        <h4 className="text-md font-semibold text-green-800 mb-4 flex items-center">
+          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+          Things They Did Well
+        </h4>
+        <div className="space-y-3">
+          {coaching.thingsTheyDidWell.map((item, index) => (
+            <div key={index} className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <span className="flex-shrink-0 w-6 h-6 bg-green-100 text-green-800 text-sm font-medium rounded-full flex items-center justify-center mr-3">
+                  {index + 1}
+                </span>
+                <p className="text-green-800">{item}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Areas for Improvement */}
+      <div>
+        <h4 className="text-md font-semibold text-blue-800 mb-4 flex items-center">
+          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+          </svg>
+          Areas for Improvement
+        </h4>
+        <div className="space-y-4">
+          {coaching.areasForImprovement.map((item, index) => (
+            <div key={index} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start mb-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-800 text-sm font-medium rounded-full flex items-center justify-center mr-3">
+                  {index + 1}
+                </span>
+                <div className="flex-1">
+                  <h5 className="font-medium text-blue-900 mb-1">{item.area}</h5>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                    {item.bridgeStep}
+                  </span>
+                </div>
+              </div>
+              <div className="ml-9">
+                <p className="text-blue-800 text-sm"><strong>How to improve:</strong> {item.howToImprove}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
