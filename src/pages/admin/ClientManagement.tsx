@@ -131,21 +131,28 @@ export default function ClientManagement() {
 
       if (error) throw error;
 
-      // Automatically create OpenAI setup
+      // Try to create OpenAI setup, but don't fail if it doesn't work
       try {
         await createClientSetup(newClient.id, newClient.name);
-        
         alert(`Client "${newClient.name}" created successfully with OpenAI integration!`);
       } catch (openaiError) {
         console.error('Failed to create OpenAI setup:', openaiError);
-        alert(`Client "${newClient.name}" created, but OpenAI setup failed. You can retry from the client details.`);
+        console.error('OpenAI Error Details:', openaiError);
+        alert(`Client "${newClient.name}" created successfully! OpenAI setup can be completed later.`);
       }
 
       await fetchClients();
       setShowCreateModal(false);
     } catch (err) {
       console.error('Error creating client:', err);
-      alert('Failed to create client');
+      console.error('Full error details:', err);
+      
+      // More specific error message
+      if (err instanceof Error) {
+        alert(`Failed to create client: ${err.message}`);
+      } else {
+        alert('Failed to create client: Unknown error occurred');
+      }
     }
   };
 
