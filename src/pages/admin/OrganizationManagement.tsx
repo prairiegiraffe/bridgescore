@@ -37,6 +37,7 @@ export default function OrganizationManagement() {
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
   const [showCreateOrgModal, setShowCreateOrgModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showOpenAIModal, setShowOpenAIModal] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
 
   useEffect(() => {
@@ -197,6 +198,32 @@ export default function OrganizationManagement() {
     }
   };
 
+  const updateOpenAISettings = async (openaiData: {
+    assistant_id: string;
+    vector_store_id: string;
+  }) => {
+    if (!selectedOrg) return;
+
+    try {
+      const { error } = await (supabase as any)
+        .from('organizations')
+        .update({
+          openai_assistant_id: openaiData.assistant_id || null,
+          openai_vector_store_id: openaiData.vector_store_id || null
+        })
+        .eq('id', selectedOrg.id);
+
+      if (error) throw error;
+      
+      alert('OpenAI settings updated successfully!');
+      await fetchOrganizations();
+      setShowOpenAIModal(false);
+    } catch (err) {
+      console.error('Error updating OpenAI settings:', err);
+      alert(`Failed to update OpenAI settings: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto">
@@ -308,6 +335,66 @@ export default function OrganizationManagement() {
                 </div>
               </div>
 
+              {/* OpenAI Settings */}
+              <div className="bg-white shadow rounded-lg p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">OpenAI Integration</h3>
+                    <p className="text-sm text-gray-500">Manage AI assistant and vector store for call scoring</p>
+                  </div>
+                  <button
+                    onClick={() => setShowOpenAIModal(true)}
+                    className="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700"
+                  >
+                    Configure OpenAI
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 border border-gray-200 rounded-lg">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">AI Assistant</h4>
+                    {selectedOrg.openai_assistant_id ? (
+                      <div>
+                        <p className="text-sm text-green-600 font-mono break-all">
+                          {selectedOrg.openai_assistant_id}
+                        </p>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 mt-2">
+                          ✓ Configured
+                        </span>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-sm text-gray-500">No assistant configured</p>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 mt-2">
+                          Not Configured
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="p-4 border border-gray-200 rounded-lg">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Vector Store</h4>
+                    {selectedOrg.openai_vector_store_id ? (
+                      <div>
+                        <p className="text-sm text-green-600 font-mono break-all">
+                          {selectedOrg.openai_vector_store_id}
+                        </p>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 mt-2">
+                          ✓ Configured
+                        </span>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-sm text-gray-500">No vector store configured</p>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 mt-2">
+                          Not Configured
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Users Table */}
               <div className="bg-white shadow rounded-lg">
                 <div className="p-4 border-b border-gray-200">
@@ -395,6 +482,15 @@ export default function OrganizationManagement() {
         />
       )}
 
+      {/* OpenAI Settings Modal */}
+      {showOpenAIModal && selectedOrg && (
+        <OpenAISettingsModal
+          organization={selectedOrg}
+          onClose={() => setShowOpenAIModal(false)}
+          onUpdate={updateOpenAISettings}
+        />
+      )}
+
       {/* Edit Organization Modal */}
       {editingOrg && (
         <BridgeStepsEditor 
@@ -406,6 +502,111 @@ export default function OrganizationManagement() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+// OpenAI Settings Modal
+function OpenAISettingsModal({ organization, onClose, onUpdate }: {
+  organization: Organization;
+  onClose: () => void;
+  onUpdate: (data: any) => void;
+}) {
+  const [assistantId, setAssistantId] = useState(organization.openai_assistant_id || '');
+  const [vectorStoreId, setVectorStoreId] = useState(organization.openai_vector_store_id || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setSaving(true);
+    try {
+      await onUpdate({
+        assistant_id: assistantId.trim(),
+        vector_store_id: vectorStoreId.trim()
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-lg w-full">
+        <h3 className="text-lg font-semibold mb-2">Configure OpenAI for {organization.name}</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          Set up AI assistant and vector store for automated call scoring.
+        </p>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              OpenAI Assistant ID
+            </label>
+            <input
+              type="text"
+              value={assistantId}
+              onChange={(e) => setAssistantId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
+              placeholder="asst_xxxxxxxxxxxxxxxxxx"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Found in OpenAI Dashboard → Assistants
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Vector Store ID
+            </label>
+            <input
+              type="text"
+              value={vectorStoreId}
+              onChange={(e) => setVectorStoreId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
+              placeholder="vs_xxxxxxxxxxxxxxxxxx"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Found in OpenAI Dashboard → Storage → Vector Stores
+            </p>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800">
+                  Setting up OpenAI Integration
+                </h3>
+                <div className="mt-2 text-sm text-blue-700">
+                  <p>These IDs connect your organization to OpenAI for call scoring. You can find them in your OpenAI Dashboard.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save OpenAI Settings'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
