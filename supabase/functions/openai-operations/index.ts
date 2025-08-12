@@ -77,6 +77,10 @@ serve(async (req) => {
         result = await createClientSetup(payload, openaiHeaders, supabaseClient)
         break
       
+      case 'create_organization_setup':
+        result = await createOrganizationSetup(payload, openaiHeaders, supabaseClient)
+        break
+      
       case 'create_assistant':
         result = await createAssistant(payload, openaiHeaders)
         break
@@ -179,6 +183,72 @@ async function createClientSetup(
     assistantId: assistant.id,
     vectorStoreId: vectorStore.id,
     clientId
+  }
+}
+
+/**
+ * Create complete organization setup (assistant + vector store) 
+ */
+async function createOrganizationSetup(
+  { organizationId, organizationName }: { organizationId: string; organizationName: string },
+  openaiHeaders: Record<string, string>,
+  supabaseClient: any
+) {
+  // Create vector store
+  const vectorStoreResponse = await fetch('https://api.openai.com/v1/vector_stores', {
+    method: 'POST',
+    headers: openaiHeaders,
+    body: JSON.stringify({
+      name: `${organizationName} Knowledge Base`
+    })
+  })
+
+  if (!vectorStoreResponse.ok) {
+    throw new Error('Failed to create vector store')
+  }
+
+  const vectorStore = await vectorStoreResponse.json() as OpenAIVectorStore
+
+  // Create assistant
+  const assistantResponse = await fetch('https://api.openai.com/v1/assistants', {
+    method: 'POST',
+    headers: openaiHeaders,
+    body: JSON.stringify({
+      name: `${organizationName} Bridge Selling Coach`,
+      instructions: `You are a Bridge Selling expert coach for ${organizationName}. You evaluate sales calls based on the Bridge Selling methodology, providing detailed feedback and scores for each step. Always respond with structured JSON as requested.`,
+      model: 'gpt-4o',
+      tools: [{ type: 'file_search' }],
+      tool_resources: {
+        file_search: {
+          vector_store_ids: [vectorStore.id]
+        }
+      }
+    })
+  })
+
+  if (!assistantResponse.ok) {
+    throw new Error('Failed to create assistant')
+  }
+
+  const assistant = await assistantResponse.json() as OpenAIAssistant
+
+  // Update organization record with OpenAI IDs
+  const { error } = await supabaseClient
+    .from('organizations')
+    .update({
+      openai_assistant_id: assistant.id,
+      openai_vector_store_id: vectorStore.id
+    })
+    .eq('id', organizationId)
+
+  if (error) {
+    throw new Error('Failed to update organization record')
+  }
+
+  return {
+    assistantId: assistant.id,
+    vectorStoreId: vectorStore.id,
+    organizationId
   }
 }
 

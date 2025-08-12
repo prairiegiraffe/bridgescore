@@ -224,6 +224,44 @@ export default function OrganizationManagement() {
     }
   };
 
+  const autoCreateOpenAI = async () => {
+    if (!selectedOrg) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session');
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-operations`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            action: 'create_organization_setup',
+            organizationId: selectedOrg.id,
+            organizationName: selectedOrg.name
+          })
+        }
+      );
+
+      const result = await response.json();
+      
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to create OpenAI setup');
+      }
+
+      alert(`OpenAI setup created successfully!\nAssistant ID: ${result.assistantId}\nVector Store ID: ${result.vectorStoreId}`);
+      await fetchOrganizations();
+      setShowOpenAIModal(false);
+    } catch (err) {
+      console.error('Error auto-creating OpenAI setup:', err);
+      alert(`Failed to auto-create OpenAI setup: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto">
@@ -488,6 +526,7 @@ export default function OrganizationManagement() {
           organization={selectedOrg}
           onClose={() => setShowOpenAIModal(false)}
           onUpdate={updateOpenAISettings}
+          onAutoCreate={autoCreateOpenAI}
         />
       )}
 
@@ -507,14 +546,16 @@ export default function OrganizationManagement() {
 }
 
 // OpenAI Settings Modal
-function OpenAISettingsModal({ organization, onClose, onUpdate }: {
+function OpenAISettingsModal({ organization, onClose, onUpdate, onAutoCreate }: {
   organization: Organization;
   onClose: () => void;
   onUpdate: (data: any) => void;
+  onAutoCreate: () => void;
 }) {
   const [assistantId, setAssistantId] = useState(organization.openai_assistant_id || '');
   const [vectorStoreId, setVectorStoreId] = useState(organization.openai_vector_store_id || '');
   const [saving, setSaving] = useState(false);
+  const [autoCreating, setAutoCreating] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -530,6 +571,15 @@ function OpenAISettingsModal({ organization, onClose, onUpdate }: {
     }
   };
 
+  const handleAutoCreate = async () => {
+    setAutoCreating(true);
+    try {
+      await onAutoCreate();
+    } finally {
+      setAutoCreating(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-lg w-full">
@@ -537,8 +587,35 @@ function OpenAISettingsModal({ organization, onClose, onUpdate }: {
         <p className="text-sm text-gray-600 mb-4">
           Set up AI assistant and vector store for automated call scoring.
         </p>
+
+        {/* Auto-Create Section */}
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 mb-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <h4 className="text-sm font-semibold text-purple-800 mb-1">🤖 Automatic Setup</h4>
+              <p className="text-sm text-purple-700 mb-3">
+                Let BridgeSelling automatically create an AI assistant and vector store optimized for your organization.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleAutoCreate}
+            disabled={autoCreating}
+            className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {autoCreating ? '🔄 Creating OpenAI Setup...' : '✨ Auto-Create Assistant & Vector Store'}
+          </button>
+        </div>
+
+        <div className="flex items-center my-6">
+          <div className="flex-grow border-t border-gray-300"></div>
+          <span className="flex-shrink mx-4 text-gray-500 text-sm">OR</span>
+          <div className="flex-grow border-t border-gray-300"></div>
+        </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
+          <h4 className="text-sm font-medium text-gray-700 mb-3">🛠️ Manual Configuration</h4>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               OpenAI Assistant ID
