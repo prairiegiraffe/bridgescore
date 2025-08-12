@@ -24,6 +24,11 @@ interface CallData {
     name: string;
     version: string;
   };
+  scoring_method?: 'local' | 'openai';
+  client_id?: string;
+  openai_thread_id?: string;
+  openai_run_id?: string;
+  openai_raw_response?: string;
 }
 
 export default function CallDetail() {
@@ -33,7 +38,7 @@ export default function CallDetail() {
   const [call, setCall] = useState<CallData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'scorecard' | 'coaching' | 'transcript'>('scorecard');
+  const [activeTab, setActiveTab] = useState<'scorecard' | 'coaching' | 'transcript' | 'ai-reasoning'>('scorecard');
   const [memberRole, setMemberRole] = useState<string | null>(null);
   const [showCoachingModal, setShowCoachingModal] = useState(false);
   const [showRescoreMenu, setShowRescoreMenu] = useState(false);
@@ -421,6 +426,18 @@ export default function CallDetail() {
             >
               Raw Transcript
             </button>
+            {call.scoring_method === 'openai' && call.openai_raw_response && (
+              <button
+                onClick={() => setActiveTab('ai-reasoning')}
+                className={`py-3 px-6 text-sm font-medium ${
+                  activeTab === 'ai-reasoning'
+                    ? 'border-b-2 border-blue-500 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                AI Reasoning
+              </button>
+            )}
           </nav>
         </div>
 
@@ -475,6 +492,10 @@ export default function CallDetail() {
               </div>
             </div>
           )}
+
+          {activeTab === 'ai-reasoning' && call.openai_raw_response && (
+            <AIReasoningTab rawResponse={call.openai_raw_response} />
+          )}
         </div>
       </div>
 
@@ -486,6 +507,100 @@ export default function CallDetail() {
           stepLabels={stepLabels}
         />
       )}
+    </div>
+  );
+}
+
+// AI Reasoning Tab Component
+interface AIReasoningTabProps {
+  rawResponse: string;
+}
+
+function AIReasoningTab({ rawResponse }: AIReasoningTabProps) {
+  const stepLabels = {
+    pinpoint_pain: 'Pinpoint Pain',
+    qualify: 'Qualify',
+    solution_success: 'Solution Success',
+    qa: 'Q&A',
+    next_steps: 'Next Steps',
+    close_or_schedule: 'Close or Schedule',
+  };
+
+  let parsedResponse;
+  try {
+    parsedResponse = JSON.parse(rawResponse);
+  } catch (err) {
+    return (
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          AI Reasoning
+        </h3>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-700">Failed to parse OpenAI response data.</p>
+          <details className="mt-2">
+            <summary className="text-sm text-red-600 cursor-pointer">Show raw response</summary>
+            <pre className="text-xs text-gray-600 mt-2 whitespace-pre-wrap">{rawResponse}</pre>
+          </details>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        AI Reasoning
+      </h3>
+      <div className="space-y-6">
+        {parsedResponse.steps && parsedResponse.steps.map((step: any, index: number) => (
+          <div key={step.stepKey || index} className="border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-medium text-gray-900">
+                {stepLabels[step.stepKey as keyof typeof stepLabels] || step.stepKey}
+              </h4>
+              <div className="flex items-center space-x-2">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  step.score >= 3 ? 'bg-green-100 text-green-800' :
+                  step.score >= 2 ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-red-100 text-red-800'
+                }`}>
+                  Score: {step.score}/4
+                </span>
+              </div>
+            </div>
+            
+            {step.reasoning && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                <h5 className="text-sm font-medium text-blue-900 mb-2">AI Analysis:</h5>
+                <p className="text-sm text-blue-800 whitespace-pre-wrap">{step.reasoning}</p>
+              </div>
+            )}
+
+            {step.evidence && step.evidence.length > 0 && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <h5 className="text-sm font-medium text-gray-900 mb-2">Evidence Found:</h5>
+                <ul className="space-y-1">
+                  {step.evidence.map((evidence: string, evidenceIndex: number) => (
+                    <li key={evidenceIndex} className="text-sm text-gray-700 flex items-start">
+                      <span className="text-gray-400 mr-2">•</span>
+                      <span className="italic">"{evidence}"</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {parsedResponse.summary && (
+          <div className="border-t border-gray-200 pt-4">
+            <h4 className="font-medium text-gray-900 mb-3">Overall Summary</h4>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{parsedResponse.summary}</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
