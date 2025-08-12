@@ -8,7 +8,7 @@ import Dashboard from './pages/Dashboard';
 import CallDetail from './pages/CallDetail';
 import Demo from './pages/Demo';
 import ClientManagement from './pages/admin/ClientManagement';
-import UserManagement from './pages/admin/UserManagement';
+import OrganizationManagement from './pages/admin/OrganizationManagement';
 import Team from './pages/Team';
 import Settings from './pages/Settings';
 
@@ -50,10 +50,10 @@ function AppContent() {
                 }
               />
               <Route
-                path="/admin/users"
+                path="/admin/organizations"
                 element={
                   <AuthGate>
-                    <UserManagement />
+                    <OrganizationManagement />
                   </AuthGate>
                 }
               />

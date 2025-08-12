@@ -23,22 +23,23 @@ interface User {
   }[];
 }
 
-interface Client {
+interface OrganizationDetails {
   id: string;
   name: string;
-  organizations?: {
-    id: string;
-    name: string;
-  }[];
+  domain?: string;
+  primary_color: string;
+  secondary_color: string;
+  openai_assistant_id?: string;
+  openai_vector_store_id?: string;
+  member_count: number;
+  created_at: string;
 }
 
 interface Organization {
   id: string;
   name: string;
-  client_id?: string;
-  client?: {
-    name: string;
-  };
+  domain?: string;
+  primary_color?: string;
 }
 
 export default function UserManagement() {
@@ -46,14 +47,15 @@ export default function UserManagement() {
   const { user: currentUser } = useAuth();
   
   const [users, setUsers] = useState<User[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
+  const [organizationDetails, setOrganizationDetails] = useState<OrganizationDetails[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [showCreateOrgModal, setShowCreateOrgModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedClient, setSelectedClient] = useState<string>('');
+  const [selectedOrg, setSelectedOrg] = useState<string>('');
 
   useEffect(() => {
     checkSuperAdminAccess();
