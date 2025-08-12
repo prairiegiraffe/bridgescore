@@ -33,20 +33,20 @@ export default function TopNav() {
                   Dashboard
                 </Link>
                 {isSuperAdmin && (
-                  <Link
-                    to="/admin/clients"
-                    className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
-                  >
-                    Client Management
-                  </Link>
-                )}
-                {FLAGS.ASSISTANTS && (
-                  <Link
-                    to="/admin/assistants"
-                    className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
-                  >
-                    AI Assistants
-                  </Link>
+                  <>
+                    <Link
+                      to="/admin/clients"
+                      className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                    >
+                      Clients
+                    </Link>
+                    <Link
+                      to="/admin/users"
+                      className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                    >
+                      Users
+                    </Link>
+                  </>
                 )}
                 {FLAGS.TEAM_BOARDS && (
                   <Link

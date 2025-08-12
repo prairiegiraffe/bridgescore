@@ -7,8 +7,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CallDetail from './pages/CallDetail';
 import Demo from './pages/Demo';
-import Assistants from './pages/admin/Assistants';
 import ClientManagement from './pages/admin/ClientManagement';
+import UserManagement from './pages/admin/UserManagement';
 import Team from './pages/Team';
 import Settings from './pages/Settings';
 
@@ -40,18 +40,18 @@ function App() {
               />
               <Route path="/demo/:shareId" element={<Demo />} />
               <Route
-                path="/admin/assistants"
-                element={
-                  <AuthGate>
-                    <Assistants />
-                  </AuthGate>
-                }
-              />
-              <Route
                 path="/admin/clients"
                 element={
                   <AuthGate>
                     <ClientManagement />
+                  </AuthGate>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <AuthGate>
+                    <UserManagement />
                   </AuthGate>
                 }
               />
