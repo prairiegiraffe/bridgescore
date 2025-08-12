@@ -228,7 +228,7 @@ export default function UserManagement() {
 
     try {
       // Call our database function to delete user data
-      const { data, error } = await (supabase as any)
+      const { error } = await (supabase as any)
         .rpc('delete_user_as_superadmin', { target_user_id: userId });
       
       if (error) throw error;
