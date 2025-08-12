@@ -7,7 +7,6 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CallDetail from './pages/CallDetail';
 import Demo from './pages/Demo';
-import ClientManagement from './pages/admin/ClientManagement';
 import OrganizationManagement from './pages/admin/OrganizationManagement';
 import Team from './pages/Team';
 import Settings from './pages/Settings';
@@ -41,14 +40,6 @@ function AppContent() {
                 }
               />
               <Route path="/demo/:shareId" element={<Demo />} />
-              <Route
-                path="/admin/clients"
-                element={
-                  <AuthGate>
-                    <ClientManagement />
-                  </AuthGate>
-                }
-              />
               <Route
                 path="/admin/organizations"
                 element={
