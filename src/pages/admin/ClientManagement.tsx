@@ -131,19 +131,15 @@ export default function ClientManagement() {
 
       if (error) throw error;
 
-      // Skip OpenAI setup for now to test basic client creation
-      console.log('Client created successfully:', newClient);
-      alert(`Client "${newClient.name}" created successfully! OpenAI setup can be added later via the "Setup OpenAI" button.`);
-      
-      // TODO: Re-enable OpenAI auto-setup once basic creation is working
-      // try {
-      //   await createClientSetup(newClient.id, newClient.name);
-      //   alert(`Client "${newClient.name}" created successfully with OpenAI integration!`);
-      // } catch (openaiError) {
-      //   console.error('Failed to create OpenAI setup:', openaiError);
-      //   console.error('OpenAI Error Details:', openaiError);
-      //   alert(`Client "${newClient.name}" created successfully! OpenAI setup can be completed later.`);
-      // }
+      // Try to create OpenAI setup automatically
+      try {
+        await createClientSetup(newClient.id, newClient.name);
+        alert(`Client "${newClient.name}" created successfully with OpenAI integration!`);
+      } catch (openaiError) {
+        console.error('Failed to create OpenAI setup:', openaiError);
+        console.error('OpenAI Error Details:', openaiError);
+        alert(`Client "${newClient.name}" created successfully! OpenAI setup failed - you can set it up manually with the "Setup OpenAI" button.`);
+      }
 
       await fetchClients();
       setShowCreateModal(false);
