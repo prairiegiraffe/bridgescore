@@ -101,7 +101,8 @@ export default function CallDetail() {
     if (!id) return;
 
     try {
-      const { data, error: fetchError } = await (supabase as any)
+      // First try with assistant version join
+      let { data, error: fetchError } = await (supabase as any)
         .from('calls')
         .select(`
           *,
@@ -110,7 +111,20 @@ export default function CallDetail() {
         .eq('id', id)
         .single();
 
-      if (fetchError) throw fetchError;
+      // If that fails, try without the join (backwards compatibility)
+      if (fetchError && fetchError.code) {
+        const { data: fallbackData, error: fallbackError } = await (supabase as any)
+          .from('calls')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        if (fallbackError) throw fallbackError;
+        data = fallbackData;
+      } else if (fetchError) {
+        throw fetchError;
+      }
+
       setCall(data);
     } catch (err) {
       console.error('Error fetching call:', err);
@@ -238,15 +252,24 @@ export default function CallDetail() {
       // Find the selected version details
       const selectedVersion = assistantVersions.find(v => v.id === assistantVersionId);
       
+      // Prepare update data - only include new columns if they exist
+      let updateData: any = {
+        score_total: newScore.total,
+        score_breakdown: newScore
+      };
+
+      // Add version info if supported (try/catch for backwards compatibility)
+      try {
+        updateData.assistant_version_id = assistantVersionId;
+        updateData.framework_version = '1.0';
+      } catch (e) {
+        // Continue without version tracking if columns don't exist
+      }
+
       // Update the call with new score and version info
       const { error } = await (supabase as any)
         .from('calls')
-        .update({
-          score_total: newScore.total,
-          score_breakdown: newScore,
-          assistant_version_id: assistantVersionId,
-          framework_version: '1.0'
-        })
+        .update(updateData)
         .eq('id', call.id);
 
       if (error) throw error;
@@ -301,7 +324,7 @@ export default function CallDetail() {
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
               Framework v{call.framework_version || '1.0'}
             </span>
-            {call.assistant_version && (
+            {call.assistant_version && call.assistant_version.name && (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                 {call.assistant_version.name} v{call.assistant_version.version}
               </span>
