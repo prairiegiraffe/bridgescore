@@ -67,6 +67,8 @@ export function OrgProvider({ children }: { children: ReactNode }) {
         name: membership.organization.name,
         is_demo: membership.organization.is_demo,
         role: membership.role,
+        openai_assistant_id: membership.organization.openai_assistant_id,
+        openai_vector_store_id: membership.organization.openai_vector_store_id,
       })) || [];
 
       console.log('Processed orgs:', orgs);
