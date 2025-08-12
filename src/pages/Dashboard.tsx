@@ -3,7 +3,6 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 import { supabase } from '../lib/supabase';
-import { scoreBridgeSelling } from '../lib/scoring';
 import { FLAGS } from '../lib/flags';
 import { getActiveAssistantVersion, getAssistantVersions, type AssistantVersion } from '../lib/assistants';
 

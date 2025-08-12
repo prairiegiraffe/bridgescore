@@ -8,6 +8,8 @@ interface Organization {
   name: string;
   is_demo: boolean;
   role: 'owner' | 'admin' | 'member';
+  openai_assistant_id?: string;
+  openai_vector_store_id?: string;
 }
 
 interface OrgContextType {
@@ -49,7 +51,9 @@ export function OrgProvider({ children }: { children: ReactNode }) {
           organization:organizations(
             id,
             name,
-            is_demo
+            is_demo,
+            openai_assistant_id,
+            openai_vector_store_id
           )
         `)
         .eq('user_id', user?.id);
