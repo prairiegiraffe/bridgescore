@@ -188,14 +188,14 @@ export default function Team() {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Team Management</h1>
         <p className="text-gray-500 mt-1">Review calls and manage coaching for {currentOrg?.name}</p>

@@ -326,7 +326,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Dashboard</h1>
       
       {/* Create New Call Form */}

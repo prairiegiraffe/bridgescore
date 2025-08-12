@@ -1,7 +1,7 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { OrgProvider } from './contexts/OrgContext';
-import TopNav from './components/TopNav';
+import Sidebar from './components/Sidebar';
 import AuthGate from './components/AuthGate';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -12,15 +12,17 @@ import UserManagement from './pages/admin/UserManagement';
 import Team from './pages/Team';
 import Settings from './pages/Settings';
 
-function App() {
+function AppContent() {
+  const location = useLocation();
+  const isAuthPage = location.pathname === '/login';
+  const isDemoPage = location.pathname.startsWith('/demo');
+  const showSidebar = !isAuthPage && !isDemoPage;
+
   return (
-    <AuthProvider>
-      <OrgProvider>
-        <BrowserRouter>
-          <div className="min-h-screen bg-gray-50">
-            <TopNav />
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <Routes>
+    <div className="min-h-screen bg-gray-50">
+      {showSidebar && <Sidebar />}
+      <div className={showSidebar ? 'lg:ml-64' : ''}>
+          <Routes>
               <Route path="/login" element={<Login />} />
               <Route
                 path="/dashboard"
@@ -80,8 +82,17 @@ function App() {
                 }
               />
             </Routes>
-          </div>
-          </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <OrgProvider>
+        <BrowserRouter>
+          <AppContent />
         </BrowserRouter>
       </OrgProvider>
     </AuthProvider>

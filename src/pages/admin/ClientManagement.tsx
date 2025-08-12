@@ -214,7 +214,7 @@ export default function ClientManagement() {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
       </div>
     );
@@ -222,7 +222,7 @@ export default function ClientManagement() {
 
   if (!isSuperAdmin) {
     return (
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
           Access denied. SuperAdmin privileges required.
         </div>
@@ -231,7 +231,7 @@ export default function ClientManagement() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Client Management</h1>
         <p className="text-gray-500 mt-1">Manage client configurations, Bridge Selling steps, and OpenAI assistants</p>

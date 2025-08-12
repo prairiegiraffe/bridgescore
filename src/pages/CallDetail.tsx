@@ -275,7 +275,7 @@ export default function CallDetail() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
       </div>
     );
@@ -283,7 +283,7 @@ export default function CallDetail() {
 
   if (error || !call) {
     return (
-      <div className="p-6">
+      <div className="p-8">
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
           {error || 'Call not found'}
         </div>
@@ -292,7 +292,7 @@ export default function CallDetail() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto p-6">
       {/* Header */}
       <div className="mb-6">
         <Link
