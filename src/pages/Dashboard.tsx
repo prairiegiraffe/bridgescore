@@ -1,17 +1,48 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 import { supabase } from '../lib/supabase';
 import { scoreBridgeSelling } from '../lib/scoring';
 import { FLAGS } from '../lib/flags';
-import { getActiveAssistantVersion } from '../lib/assistants';
+import { getActiveAssistantVersion, getAssistantVersions, type AssistantVersion } from '../lib/assistants';
 
 interface Call {
   id: string;
   title: string;
   score_total: number;
   created_at: string;
+  user_id: string;
+  framework_version?: string;
+  assistant_version_id?: string;
+  user?: {
+    email: string;
+  };
+  assistant_version?: {
+    name: string;
+    version: string;
+  };
+}
+
+interface FilterParams {
+  rep?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  scoreMin?: string;
+  scoreMax?: string;
+  assistantVersion?: string;
+  framework?: string;
+}
+
+interface SavedView {
+  id: string;
+  name: string;
+  params: FilterParams;
+  user_id: string;
+  created_at: string;
+  user?: {
+    email: string;
+  };
 }
 
 export default function Dashboard() {
@@ -22,34 +53,93 @@ export default function Dashboard() {
   const [recentCalls, setRecentCalls] = useState<Call[]>([]);
   const [callsLoading, setCallsLoading] = useState(true);
   
+  // Filter state
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showFilters, setShowFilters] = useState(false);
+  const [assistantVersions, setAssistantVersions] = useState<AssistantVersion[]>([]);
+  const [orgMembers, setOrgMembers] = useState<Array<{id: string, email: string}>>([]);
+  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveViewName, setSaveViewName] = useState('');
+  
   const { user } = useAuth();
   const { currentOrg } = useOrg();
   const navigate = useNavigate();
 
-  // Fetch recent calls
+  // Get current filters from URL
+  const currentFilters: FilterParams = {
+    rep: searchParams.get('rep') || undefined,
+    dateFrom: searchParams.get('dateFrom') || undefined,
+    dateTo: searchParams.get('dateTo') || undefined,
+    scoreMin: searchParams.get('scoreMin') || undefined,
+    scoreMax: searchParams.get('scoreMax') || undefined,
+    assistantVersion: searchParams.get('assistantVersion') || undefined,
+    framework: searchParams.get('framework') || undefined,
+  };
+
+  // Fetch recent calls when user, org, or filters change
   useEffect(() => {
     fetchRecentCalls();
-  }, [user, currentOrg]);
+  }, [user, currentOrg, searchParams]);
+
+  // Load filter data
+  useEffect(() => {
+    if (currentOrg) {
+      loadFilterData();
+    }
+  }, [currentOrg]);
 
   const fetchRecentCalls = async () => {
     if (!user) return;
     
     try {
+      setCallsLoading(true);
       let query = (supabase as any)
         .from('calls')
-        .select('id, title, score_total, created_at')
+        .select(`
+          id, title, score_total, created_at, user_id, framework_version, assistant_version_id,
+          user:user_id(email),
+          assistant_version:ai_assistant_versions(name, version)
+        `)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(100); // Increased limit for filtering
 
+      // Base org/user filtering
       if (FLAGS.ORGS && currentOrg) {
-        // Org-scoped: only calls from current org
         query = query.eq('org_id', currentOrg.id);
       } else if (FLAGS.ORGS) {
-        // Orgs enabled but no current org selected - show all user's calls
         query = query.eq('user_id', user.id);
       } else {
-        // Legacy: personal calls only
         query = query.eq('user_id', user.id).is('org_id', null);
+      }
+
+      // Apply filters
+      if (currentFilters.rep) {
+        query = query.eq('user_id', currentFilters.rep);
+      }
+      
+      if (currentFilters.dateFrom) {
+        query = query.gte('created_at', `${currentFilters.dateFrom}T00:00:00`);
+      }
+      
+      if (currentFilters.dateTo) {
+        query = query.lte('created_at', `${currentFilters.dateTo}T23:59:59`);
+      }
+      
+      if (currentFilters.scoreMin) {
+        query = query.gte('score_total', parseInt(currentFilters.scoreMin));
+      }
+      
+      if (currentFilters.scoreMax) {
+        query = query.lte('score_total', parseInt(currentFilters.scoreMax));
+      }
+      
+      if (currentFilters.assistantVersion) {
+        query = query.eq('assistant_version_id', currentFilters.assistantVersion);
+      }
+      
+      if (currentFilters.framework) {
+        query = query.eq('framework_version', currentFilters.framework);
       }
 
       const { data, error } = await query;
@@ -60,6 +150,97 @@ export default function Dashboard() {
       console.error('Error fetching calls:', err);
     } finally {
       setCallsLoading(false);
+    }
+  };
+
+  const loadFilterData = async () => {
+    if (!currentOrg) return;
+
+    try {
+      // Load assistant versions
+      const versions = await getAssistantVersions(currentOrg.id);
+      setAssistantVersions(versions);
+
+      // Load org members
+      const { data: memberData } = await (supabase as any)
+        .from('memberships')
+        .select(`
+          user_id,
+          user:user_id(email)
+        `)
+        .eq('org_id', currentOrg.id);
+
+      if (memberData) {
+        setOrgMembers(memberData.map((m: any) => ({
+          id: m.user_id,
+          email: m.user.email
+        })));
+      }
+
+      // Load saved views
+      const { data: viewData } = await (supabase as any)
+        .from('saved_views')
+        .select(`
+          *,
+          user:user_id(email)
+        `)
+        .eq('org_id', currentOrg.id)
+        .order('created_at', { ascending: false });
+
+      if (viewData) {
+        setSavedViews(viewData);
+      }
+    } catch (err) {
+      console.error('Error loading filter data:', err);
+    }
+  };
+
+  const updateFilter = (key: keyof FilterParams, value: string | undefined) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value) {
+      newParams.set(key, value);
+    } else {
+      newParams.delete(key);
+    }
+    setSearchParams(newParams);
+  };
+
+  const clearFilters = () => {
+    setSearchParams(new URLSearchParams());
+  };
+
+  const loadSavedView = (view: SavedView) => {
+    const newParams = new URLSearchParams();
+    Object.entries(view.params).forEach(([key, value]) => {
+      if (value) {
+        newParams.set(key, value);
+      }
+    });
+    setSearchParams(newParams);
+  };
+
+  const saveCurrentView = async () => {
+    if (!currentOrg || !saveViewName.trim()) return;
+
+    try {
+      const { error } = await (supabase as any)
+        .from('saved_views')
+        .insert({
+          org_id: currentOrg.id,
+          user_id: user?.id,
+          name: saveViewName.trim(),
+          params: currentFilters
+        });
+
+      if (error) throw error;
+      
+      await loadFilterData();
+      setShowSaveModal(false);
+      setSaveViewName('');
+      alert('Filter saved successfully!');
+    } catch (err) {
+      console.error('Error saving view:', err);
+      alert('Failed to save filter.');
     }
   };
 
@@ -186,6 +367,185 @@ export default function Dashboard() {
         </form>
       </div>
 
+      {/* Filter Panel */}
+      <div className="bg-white shadow rounded-lg p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-900">All Calls</h2>
+          <div className="flex space-x-2">
+            {/* Saved Views Dropdown */}
+            {savedViews.length > 0 && (
+              <select
+                onChange={(e) => {
+                  const view = savedViews.find(v => v.id === e.target.value);
+                  if (view) loadSavedView(view);
+                }}
+                className="px-3 py-1 text-sm border border-gray-300 rounded-md"
+                value=""
+              >
+                <option value="">Load Saved Filter...</option>
+                {savedViews.map(view => (
+                  <option key={view.id} value={view.id}>
+                    {view.name} {view.user?.email !== user?.email ? `(by ${view.user?.email})` : ''}
+                  </option>
+                ))}
+              </select>
+            )}
+            
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            >
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Controls */}
+        {showFilters && (
+          <div className="border-t border-gray-200 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+              {/* Rep Filter */}
+              {FLAGS.ORGS && orgMembers.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Rep
+                  </label>
+                  <select
+                    value={currentFilters.rep || ''}
+                    onChange={(e) => updateFilter('rep', e.target.value || undefined)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
+                  >
+                    <option value="">All Reps</option>
+                    {orgMembers.map(member => (
+                      <option key={member.id} value={member.id}>
+                        {member.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Date From */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  From Date
+                </label>
+                <input
+                  type="date"
+                  value={currentFilters.dateFrom || ''}
+                  onChange={(e) => updateFilter('dateFrom', e.target.value || undefined)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
+                />
+              </div>
+
+              {/* Date To */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  To Date
+                </label>
+                <input
+                  type="date"
+                  value={currentFilters.dateTo || ''}
+                  onChange={(e) => updateFilter('dateTo', e.target.value || undefined)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
+                />
+              </div>
+
+              {/* Score Min */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Min Score
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="20"
+                  value={currentFilters.scoreMin || ''}
+                  onChange={(e) => updateFilter('scoreMin', e.target.value || undefined)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
+                  placeholder="0"
+                />
+              </div>
+
+              {/* Score Max */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Max Score
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="20"
+                  value={currentFilters.scoreMax || ''}
+                  onChange={(e) => updateFilter('scoreMax', e.target.value || undefined)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
+                  placeholder="20"
+                />
+              </div>
+
+              {/* Assistant Version */}
+              {assistantVersions.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Assistant Version
+                  </label>
+                  <select
+                    value={currentFilters.assistantVersion || ''}
+                    onChange={(e) => updateFilter('assistantVersion', e.target.value || undefined)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
+                  >
+                    <option value="">All Versions</option>
+                    {assistantVersions.map(version => (
+                      <option key={version.id} value={version.id}>
+                        {version.name} v{version.version}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Framework Version */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Framework
+                </label>
+                <select
+                  value={currentFilters.framework || ''}
+                  onChange={(e) => updateFilter('framework', e.target.value || undefined)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
+                >
+                  <option value="">All Frameworks</option>
+                  <option value="1.0">Framework v1.0</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Filter Actions */}
+            <div className="flex justify-between items-center">
+              <div className="flex space-x-2">
+                <button
+                  onClick={clearFilters}
+                  className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                >
+                  Clear All
+                </button>
+                <button
+                  onClick={() => setShowSaveModal(true)}
+                  disabled={Object.values(currentFilters).every(v => !v)}
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Save Filter
+                </button>
+              </div>
+              
+              <div className="text-sm text-gray-500">
+                {recentCalls.length} call{recentCalls.length !== 1 ? 's' : ''} found
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Recent Calls List */}
       <div className="bg-white shadow rounded-lg p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Calls</h2>
@@ -211,9 +571,21 @@ export default function Dashboard() {
                     <h3 className="text-sm font-medium text-gray-900 truncate">
                       {call.title}
                     </h3>
-                    <p className="text-sm text-gray-500">
-                      {formatDate(call.created_at)}
-                    </p>
+                    <div className="flex items-center space-x-4 mt-1">
+                      <p className="text-sm text-gray-500">
+                        {formatDate(call.created_at)}
+                      </p>
+                      {FLAGS.ORGS && call.user?.email && (
+                        <p className="text-sm text-gray-500">
+                          by {call.user.email}
+                        </p>
+                      )}
+                      {call.assistant_version && (
+                        <span className="text-xs text-gray-400">
+                          {call.assistant_version.name} v{call.assistant_version.version}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="ml-4 flex-shrink-0">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getScoreColor(call.score_total)}`}>
@@ -226,6 +598,63 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Save Filter Modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">Save Filter</h3>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter Name
+              </label>
+              <input
+                type="text"
+                value={saveViewName}
+                onChange={(e) => setSaveViewName(e.target.value)}
+                placeholder="e.g., High Score Calls This Month"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                autoFocus
+              />
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-600">
+                Current filters will be saved:
+              </p>
+              <ul className="text-xs text-gray-500 mt-2 space-y-1">
+                {Object.entries(currentFilters).map(([key, value]) => 
+                  value ? (
+                    <li key={key}>
+                      <strong>{key}:</strong> {value}
+                    </li>
+                  ) : null
+                )}
+              </ul>
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowSaveModal(false);
+                  setSaveViewName('');
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveCurrentView}
+                disabled={!saveViewName.trim()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                Save Filter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
