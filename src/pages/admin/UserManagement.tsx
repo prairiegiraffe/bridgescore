@@ -94,47 +94,69 @@ export default function UserManagement() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch all users with their memberships
-      const { data: userData, error: userError } = await (supabase as any)
-        .from('auth.users')
-        .select(`
-          id,
-          email,
-          created_at,
-          raw_user_meta_data->full_name
-        `)
-        .order('created_at', { ascending: false });
+      // Try to use the user_management_view first
+      const { data: viewData, error: viewError } = await (supabase as any)
+        .from('user_management_view')
+        .select('*');
 
-      if (userError) throw userError;
+      if (!viewError && viewData) {
+        // Use the view data if available
+        setUsers(viewData);
+      } else {
+        // Fallback to manual fetching
+        const { data: profileData } = await (supabase as any)
+          .from('profiles')
+          .select('*');
 
-      // Fetch memberships with organization and client details
-      const { data: membershipData, error: membershipError } = await (supabase as any)
-        .from('memberships')
-        .select(`
-          user_id,
-          org_id,
-          role,
-          is_superadmin,
-          organization:organizations(
-            id,
-            name,
-            client:clients(
+        const { data: membershipData } = await (supabase as any)
+          .from('memberships')
+          .select(`
+            user_id,
+            org_id,
+            role,
+            is_superadmin,
+            organization:organizations(
               id,
-              name
+              name,
+              client:clients(
+                id,
+                name
+              )
             )
-          )
-        `);
+          `);
 
-      if (membershipError) throw membershipError;
+        // Create user objects from available data
+        const userMap = new Map();
+        
+        // Start with profiles if available
+        profileData?.forEach((profile: any) => {
+          userMap.set(profile.id, {
+            id: profile.id,
+            email: profile.email,
+            full_name: profile.full_name,
+            created_at: profile.created_at,
+            memberships: []
+          });
+        });
 
-      // Combine user data with memberships
-      const usersWithMemberships = userData?.map((user: any) => ({
-        ...user,
-        full_name: user.raw_user_meta_data?.full_name,
-        memberships: membershipData?.filter((m: any) => m.user_id === user.id) || []
-      })) || [];
+        // Add membership data
+        membershipData?.forEach((membership: any) => {
+          if (!userMap.has(membership.user_id)) {
+            userMap.set(membership.user_id, {
+              id: membership.user_id,
+              email: `User ${membership.user_id.substring(0, 8)}`,
+              full_name: null,
+              created_at: new Date().toISOString(),
+              memberships: []
+            });
+          }
+          
+          const user = userMap.get(membership.user_id);
+          user.memberships.push(membership);
+        });
 
-      setUsers(usersWithMemberships);
+        setUsers(Array.from(userMap.values()));
+      }
 
       // Fetch clients
       const { data: clientData, error: clientError } = await (supabase as any)
@@ -176,36 +198,17 @@ export default function UserManagement() {
     is_superadmin: boolean;
   }) => {
     try {
-      // Create the user in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: userData.email,
-        password: userData.password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: userData.full_name
-        }
-      });
-
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('User creation failed');
-
-      // If organization is selected, create membership
-      if (userData.org_id) {
-        const { error: membershipError } = await (supabase as any)
-          .from('memberships')
-          .insert({
-            user_id: authData.user.id,
-            org_id: userData.org_id,
-            role: userData.role,
-            is_superadmin: userData.is_superadmin
-          });
-
-        if (membershipError) throw membershipError;
-      }
-
-      alert(`User "${userData.email}" created successfully!`);
-      await fetchData();
-      setShowCreateModal(false);
+      // Note: Creating users requires service role key which we don't have in the browser
+      // This is a security feature - user creation should be done through:
+      // 1. Supabase Dashboard
+      // 2. A secure backend API with service role key
+      // 3. Invitation system where users sign up themselves
+      
+      alert('User creation from the browser is not available for security reasons.\n\nPlease use:\n1. Supabase Dashboard to create users directly\n2. Send invitation links for users to sign up themselves\n3. Set up a secure backend API for user management');
+      
+      // For now, we'll just show what would be created
+      console.log('User data that would be created:', userData);
+      
     } catch (err) {
       console.error('Error creating user:', err);
       alert(`Failed to create user: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -224,10 +227,13 @@ export default function UserManagement() {
     }
 
     try {
-      const { error } = await supabase.auth.admin.deleteUser(userId);
+      // Call our database function to delete user data
+      const { data, error } = await (supabase as any)
+        .rpc('delete_user_as_superadmin', { target_user_id: userId });
+      
       if (error) throw error;
       
-      alert('User deleted successfully');
+      alert('User data deleted. Note: Complete auth removal requires service role access.');
       await fetchData();
     } catch (err) {
       console.error('Error deleting user:', err);
