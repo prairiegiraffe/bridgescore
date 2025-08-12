@@ -5,6 +5,7 @@ import { useOrg } from '../contexts/OrgContext';
 import { supabase } from '../lib/supabase';
 import { FLAGS } from '../lib/flags';
 import { getAssistantVersions, type AssistantVersion } from '../lib/assistants';
+import { testOpenAIConnection, listOpenAIAssistants } from '../lib/openai';
 
 interface Member {
   id: string;
@@ -23,6 +24,8 @@ interface OrgConfig {
   default_assistant_version_id: string | null;
   tool_flags: Record<string, boolean>;
   default_assistant_version?: AssistantVersion;
+  openai_api_key?: string;
+  openai_enabled?: boolean;
 }
 
 export default function Settings() {
@@ -37,6 +40,9 @@ export default function Settings() {
   const [orgConfig, setOrgConfig] = useState<OrgConfig | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [saving, setSaving] = useState(false);
+  const [openAIKey, setOpenAIKey] = useState('');
+  const [testingOpenAI, setTestingOpenAI] = useState(false);
+  const [openAIAssistants, setOpenAIAssistants] = useState<Array<{ id: string; name: string | null }>>([]);
 
   // Check if feature is enabled and user has access
   useEffect(() => {
@@ -387,6 +393,102 @@ export default function Settings() {
                 ))}
               </select>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* OpenAI Integration */}
+      <div className="bg-white shadow rounded-lg mb-6">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">OpenAI Integration</h2>
+        </div>
+        <div className="p-6">
+          <div className="space-y-4">
+            {/* OpenAI Enabled Toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Enable OpenAI Scoring</label>
+                <p className="text-sm text-gray-500">Use OpenAI Assistants to score calls</p>
+              </div>
+              <button
+                onClick={() => updateOrgConfig({ openai_enabled: !orgConfig?.openai_enabled })}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  orgConfig?.openai_enabled ? 'bg-blue-600' : 'bg-gray-200'
+                }`}
+                disabled={saving}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    orgConfig?.openai_enabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* OpenAI API Key */}
+            {orgConfig?.openai_enabled && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    OpenAI API Key
+                  </label>
+                  <div className="flex space-x-3">
+                    <input
+                      type="password"
+                      value={openAIKey || orgConfig?.openai_api_key?.slice(0, 10) + '...' || ''}
+                      onChange={(e) => setOpenAIKey(e.target.value)}
+                      placeholder="sk-..."
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                      disabled={saving}
+                    />
+                    <button
+                      onClick={async () => {
+                        if (openAIKey) {
+                          setTestingOpenAI(true);
+                          const isValid = await testOpenAIConnection(openAIKey);
+                          if (isValid) {
+                            await updateOrgConfig({ openai_api_key: openAIKey });
+                            const assistants = await listOpenAIAssistants(openAIKey);
+                            setOpenAIAssistants(assistants);
+                            alert('OpenAI connection successful!');
+                          } else {
+                            alert('Invalid OpenAI API key');
+                          }
+                          setTestingOpenAI(false);
+                        }
+                      }}
+                      disabled={saving || testingOpenAI || !openAIKey}
+                      className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {testingOpenAI ? 'Testing...' : 'Test & Save'}
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Enter your OpenAI API key to enable AI-powered call scoring
+                  </p>
+                </div>
+
+                {/* Available OpenAI Assistants */}
+                {openAIAssistants.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Available OpenAI Assistants
+                    </label>
+                    <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2">
+                      {openAIAssistants.map(assistant => (
+                        <div key={assistant.id} className="text-sm p-2 bg-gray-50 rounded">
+                          <span className="font-medium">{assistant.name || 'Unnamed Assistant'}</span>
+                          <span className="text-gray-500 ml-2 text-xs">{assistant.id}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Configure assistant IDs in the Assistants admin page
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>

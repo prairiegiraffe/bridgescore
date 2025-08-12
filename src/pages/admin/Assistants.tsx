@@ -22,6 +22,8 @@ interface AssistantVersion {
   vectorstore_id: string | null;
   tool_flags: Record<string, boolean>;
   created_at: string;
+  openai_assistant_id?: string | null;
+  use_openai?: boolean;
 }
 
 interface KnowledgePack {
@@ -46,6 +48,7 @@ export default function Assistants() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
   const [memberRole, setMemberRole] = useState<string | null>(null);
+  const [editingVersion, setEditingVersion] = useState<AssistantVersion | null>(null);
 
   // Check if feature is enabled
   useEffect(() => {
@@ -275,6 +278,7 @@ export default function Assistants() {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Label</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Model</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">OpenAI</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -285,6 +289,20 @@ export default function Assistants() {
                   <tr key={version.id}>
                     <td className="px-4 py-3 text-sm text-gray-900">{version.label}</td>
                     <td className="px-4 py-3 text-sm text-gray-500">{version.model}</td>
+                    <td className="px-4 py-3 text-sm">
+                      {version.use_openai ? (
+                        <div>
+                          <span className="text-green-600">✓ Enabled</span>
+                          {version.openai_assistant_id && (
+                            <div className="text-xs text-gray-500 truncate max-w-[100px]" title={version.openai_assistant_id}>
+                              {version.openai_assistant_id}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-500">
                       {new Date(version.created_at).toLocaleDateString()}
                     </td>
@@ -296,6 +314,12 @@ export default function Assistants() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-right space-x-2">
+                      <button
+                        onClick={() => setEditingVersion(version)}
+                        className="text-indigo-600 hover:text-indigo-800"
+                      >
+                        Edit
+                      </button>
                       {version.id !== config?.active_assistant_version_id && (
                         <button
                           onClick={() => handleSetActive(version.id)}
@@ -357,6 +381,18 @@ export default function Assistants() {
 
       {/* Create Version Modal */}
       {showCreateModal && <CreateVersionModal onClose={() => setShowCreateModal(false)} onCreated={fetchAssistantData} />}
+      
+      {/* Edit Version Modal */}
+      {editingVersion && (
+        <EditVersionModal 
+          version={editingVersion} 
+          onClose={() => setEditingVersion(null)} 
+          onUpdated={() => {
+            setEditingVersion(null);
+            fetchAssistantData();
+          }} 
+        />
+      )}
       
       {/* Knowledge Resources Modal */}
       {showKnowledgeModal && <KnowledgeResourcesModal onClose={() => setShowKnowledgeModal(false)} />}
@@ -493,6 +529,99 @@ function CreateVersionModal({ onClose, onCreated }: { onClose: () => void; onCre
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
               {saving ? 'Creating...' : 'Create Version'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Edit Version Modal Component
+function EditVersionModal({ version, onClose, onUpdated }: { 
+  version: AssistantVersion; 
+  onClose: () => void; 
+  onUpdated: () => void 
+}) {
+  const [openaiAssistantId, setOpenaiAssistantId] = useState(version.openai_assistant_id || '');
+  const [useOpenAI, setUseOpenAI] = useState(version.use_openai || false);
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    setSaving(true);
+    try {
+      const { error } = await (supabase as any)
+        .from('ai_assistant_versions')
+        .update({
+          openai_assistant_id: useOpenAI ? openaiAssistantId.trim() || null : null,
+          use_openai: useOpenAI
+        })
+        .eq('id', version.id);
+
+      if (error) throw error;
+      
+      alert('Assistant version updated successfully!');
+      onUpdated();
+    } catch (err) {
+      console.error('Error updating version:', err);
+      alert('Failed to update assistant version');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-lg w-full">
+        <h3 className="text-lg font-semibold mb-4">Edit Assistant Version: {version.label}</h3>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="flex items-center mb-3">
+              <input
+                type="checkbox"
+                checked={useOpenAI}
+                onChange={(e) => setUseOpenAI(e.target.checked)}
+                className="mr-2"
+              />
+              <span className="text-sm font-medium">Use OpenAI Assistant for Scoring</span>
+            </label>
+          </div>
+
+          {useOpenAI && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                OpenAI Assistant ID
+              </label>
+              <input
+                type="text"
+                value={openaiAssistantId}
+                onChange={(e) => setOpenaiAssistantId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                placeholder="asst_xxxxxxxxxxxxxxxxxxxxx"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Enter the OpenAI Assistant ID from your OpenAI dashboard
+              </p>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>

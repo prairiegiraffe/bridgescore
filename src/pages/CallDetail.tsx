@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { FLAGS } from '../lib/flags';
 import CoachingTaskModal from '../components/CoachingTaskModal';
 import { getAssistantVersions, type AssistantVersion } from '../lib/assistants';
-import { scoreBridgeSelling } from '../lib/scoring';
+import { rescoreCall } from '../lib/callScoring';
 
 interface CallData {
   id: string;
@@ -246,42 +246,23 @@ export default function CallDetail() {
 
     setRescoring(true);
     try {
-      // Re-run the scoring function
-      const newScore = scoreBridgeSelling(call.transcript);
-      
       // Find the selected version details
       const selectedVersion = assistantVersions.find(v => v.id === assistantVersionId);
       
-      // Prepare update data - only include new columns if they exist
-      let updateData: any = {
-        score_total: newScore.total,
-        score_breakdown: newScore
-      };
-
-      // Add version info if supported (try/catch for backwards compatibility)
-      try {
-        updateData.assistant_version_id = assistantVersionId;
-        updateData.framework_version = '1.0';
-      } catch (e) {
-        // Continue without version tracking if columns don't exist
-      }
-
-      // Update the call with new score and version info
-      const { error } = await (supabase as any)
-        .from('calls')
-        .update(updateData)
-        .eq('id', call.id);
-
-      if (error) throw error;
+      // Use the new rescoreCall function which handles OpenAI integration
+      await rescoreCall(call.id, assistantVersionId);
       
       // Refresh the call data to show updated scores and chips
       await fetchCall();
       
-      alert(`Call rescored successfully with ${selectedVersion?.name} v${selectedVersion?.version}!`);
+      const versionName = selectedVersion ? 
+        `${selectedVersion.name} v${selectedVersion.version}` : 
+        'selected assistant';
+      alert(`Call rescored successfully with ${versionName}!`);
       setShowRescoreMenu(false);
     } catch (err) {
       console.error('Error rescoring call:', err);
-      alert('Failed to rescore call. Please try again.');
+      alert('Failed to rescore call. Please check your OpenAI configuration and try again.');
     } finally {
       setRescoring(false);
     }
