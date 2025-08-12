@@ -212,7 +212,7 @@ export default function UserManagement() {
     }
   };
 
-  const runAsUser = async (userId: string) => {
+  const runAsUser = async (_userId: string) => {
     // This would require implementing an impersonation system
     // For now, we'll just show an alert
     alert('Run As feature coming soon! This will allow you to see the app as this user sees it.');
