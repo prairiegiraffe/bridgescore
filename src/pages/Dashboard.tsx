@@ -256,6 +256,40 @@ export default function Dashboard() {
     }
   };
 
+  const scoreCallWithOpenAI = async (transcript: string, org: any) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session');
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-operations`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            action: 'score_call',
+            transcript,
+            organizationId: org.id
+          })
+        }
+      );
+
+      const result = await response.json();
+      
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to score call with OpenAI');
+      }
+
+      return result;
+    } catch (err) {
+      console.error('Error scoring call with OpenAI:', err);
+      throw new Error(`OpenAI scoring failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!transcript.trim()) return;
@@ -264,8 +298,15 @@ export default function Dashboard() {
     setError(null);
 
     try {
-      // Score the transcript
-      const score = scoreBridgeSelling(transcript);
+      // Check if organization has OpenAI assistant configured
+      if (!currentOrg?.openai_assistant_id) {
+        setError('System is being configured. Please contact support@bridgeselling.com for information.');
+        setLoading(false);
+        return;
+      }
+
+      // Score the transcript using OpenAI
+      const score = await scoreCallWithOpenAI(transcript, currentOrg);
       
       // Get active assistant version if org is enabled
       let assistantVersionId = null;
@@ -280,7 +321,9 @@ export default function Dashboard() {
         title: title.trim() || 'Untitled Call',
         transcript: transcript.trim(),
         score_total: score.total,
-        score_breakdown: score,
+        score_breakdown: score.stepScores,
+        coaching: score.coaching,
+        openai_raw_response: score,
         framework_version: '1.0',
         assistant_version_id: assistantVersionId,
       };
