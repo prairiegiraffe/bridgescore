@@ -94,15 +94,12 @@ export default function Dashboard() {
     
     try {
       setCallsLoading(true);
+      // Try enhanced query first, fall back to basic query if columns don't exist
       let query = (supabase as any)
         .from('calls')
-        .select(`
-          id, title, score_total, created_at, user_id, framework_version, assistant_version_id,
-          user:user_id(email),
-          assistant_version:ai_assistant_versions(name, version)
-        `)
+        .select('id, title, score_total, created_at')
         .order('created_at', { ascending: false })
-        .limit(100); // Increased limit for filtering
+        .limit(100);
 
       // Base org/user filtering
       if (FLAGS.ORGS && currentOrg) {
@@ -157,38 +154,53 @@ export default function Dashboard() {
     if (!currentOrg) return;
 
     try {
-      // Load assistant versions
-      const versions = await getAssistantVersions(currentOrg.id);
-      setAssistantVersions(versions);
-
-      // Load org members
-      const { data: memberData } = await (supabase as any)
-        .from('memberships')
-        .select(`
-          user_id,
-          user:user_id(email)
-        `)
-        .eq('org_id', currentOrg.id);
-
-      if (memberData) {
-        setOrgMembers(memberData.map((m: any) => ({
-          id: m.user_id,
-          email: m.user.email
-        })));
+      // Load assistant versions (gracefully handle missing table)
+      try {
+        const versions = await getAssistantVersions(currentOrg.id);
+        setAssistantVersions(versions);
+      } catch (err) {
+        console.warn('Assistant versions not available:', err);
+        setAssistantVersions([]);
       }
 
-      // Load saved views
-      const { data: viewData } = await (supabase as any)
-        .from('saved_views')
-        .select(`
-          *,
-          user:user_id(email)
-        `)
-        .eq('org_id', currentOrg.id)
-        .order('created_at', { ascending: false });
+      // Load org members (gracefully handle missing table)
+      try {
+        const { data: memberData } = await (supabase as any)
+          .from('memberships')
+          .select(`
+            user_id,
+            user:user_id(email)
+          `)
+          .eq('org_id', currentOrg.id);
 
-      if (viewData) {
-        setSavedViews(viewData);
+        if (memberData) {
+          setOrgMembers(memberData.map((m: any) => ({
+            id: m.user_id,
+            email: m.user.email
+          })));
+        }
+      } catch (err) {
+        console.warn('Org members not available:', err);
+        setOrgMembers([]);
+      }
+
+      // Load saved views (gracefully handle missing table)
+      try {
+        const { data: viewData } = await (supabase as any)
+          .from('saved_views')
+          .select(`
+            *,
+            user:user_id(email)
+          `)
+          .eq('org_id', currentOrg.id)
+          .order('created_at', { ascending: false });
+
+        if (viewData) {
+          setSavedViews(viewData);
+        }
+      } catch (err) {
+        console.warn('Saved views not available:', err);
+        setSavedViews([]);
       }
     } catch (err) {
       console.error('Error loading filter data:', err);
@@ -240,7 +252,7 @@ export default function Dashboard() {
       alert('Filter saved successfully!');
     } catch (err) {
       console.error('Error saving view:', err);
-      alert('Failed to save filter.');
+      alert('Filter saving not available yet. Please run database migrations.');
     }
   };
 

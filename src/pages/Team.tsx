@@ -93,36 +93,46 @@ export default function Team() {
     
     setLoading(true);
     try {
-      // Fetch review queue with call details
-      const { data: queueData, error: queueError } = await (supabase as any)
-        .from('review_queue')
-        .select(`
-          *,
-          call:calls(title, score_total, user_id),
-          reviewer:reviewer_id(email)
-        `)
-        .eq('org_id', currentOrg.id)
-        .order('created_at', { ascending: true });
-      
-      if (queueError) {
-        console.error('Queue fetch error:', queueError);
+      // Fetch review queue with call details (handle missing table)
+      try {
+        const { data: queueData, error: queueError } = await (supabase as any)
+          .from('review_queue')
+          .select(`
+            *,
+            call:calls(title, score_total, user_id),
+            reviewer:reviewer_id(email)
+          `)
+          .eq('org_id', currentOrg.id)
+          .order('created_at', { ascending: true });
+        
+        if (queueError) {
+          console.warn('Queue fetch error:', queueError);
+        }
+        setReviewQueue(queueData || []);
+      } catch (err) {
+        console.warn('Review queue not available:', err);
+        setReviewQueue([]);
       }
-      setReviewQueue(queueData || []);
 
-      // Fetch coaching tasks with rep details
-      const { data: tasksData, error: tasksError } = await (supabase as any)
-        .from('coaching_tasks')
-        .select(`
-          *,
-          rep:rep_user_id(email)
-        `)
-        .eq('org_id', currentOrg.id)
-        .order('due_date', { ascending: true });
-      
-      if (tasksError) {
-        console.error('Tasks fetch error:', tasksError);
+      // Fetch coaching tasks with rep details (handle missing table)
+      try {
+        const { data: tasksData, error: tasksError } = await (supabase as any)
+          .from('coaching_tasks')
+          .select(`
+            *,
+            rep:rep_user_id(email)
+          `)
+          .eq('org_id', currentOrg.id)
+          .order('due_date', { ascending: true });
+        
+        if (tasksError) {
+          console.warn('Tasks fetch error:', tasksError);
+        }
+        setCoachingTasks(tasksData || []);
+      } catch (err) {
+        console.warn('Coaching tasks not available:', err);
+        setCoachingTasks([]);
       }
-      setCoachingTasks(tasksData || []);
     } catch (err) {
       console.error('Error fetching team data:', err);
     } finally {
@@ -146,6 +156,7 @@ export default function Team() {
       await fetchTeamData();
     } catch (err) {
       console.error('Error updating review status:', err);
+      alert('Review queue updates not available yet. Please run database migrations.');
     }
   };
 
@@ -162,6 +173,7 @@ export default function Team() {
       await fetchTeamData();
     } catch (err) {
       console.error('Error updating task status:', err);
+      alert('Coaching task updates not available yet. Please run database migrations.');
     }
   };
 
@@ -254,6 +266,12 @@ export default function Team() {
           {/* Call Review Queue Kanban */}
           <div>
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Call Review Queue</h2>
+            {reviewQueue.length === 0 && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md mb-4">
+                No review queue items found. You can add calls to the review queue from individual call pages.
+                {memberRole === 'owner' || memberRole === 'admin' ? ' Note: Team features require database migrations to be run.' : ''}
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {(['new', 'in_review', 'coached', 'done'] as const).map(status => (
                 <div key={status} className="bg-gray-50 rounded-lg p-4">
@@ -283,6 +301,12 @@ export default function Team() {
           {/* Coaching Plans Kanban */}
           <div>
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Coaching Plans</h2>
+            {coachingTasks.length === 0 && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md mb-4">
+                No coaching tasks found. You can create coaching tasks from individual call pages.
+                {memberRole === 'owner' || memberRole === 'admin' ? ' Note: Team features require database migrations to be run.' : ''}
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {(['todo', 'doing', 'done'] as const).map(status => (
                 <div key={status} className="bg-gray-50 rounded-lg p-4">

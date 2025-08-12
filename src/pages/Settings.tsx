@@ -124,7 +124,8 @@ export default function Settings() {
       const versions = await getAssistantVersions(currentOrg.id);
       setAssistantVersions(versions);
     } catch (err) {
-      console.error('Error fetching assistant versions:', err);
+      console.warn('Assistant versions not available:', err);
+      setAssistantVersions([]);
     }
   };
 
@@ -163,7 +164,19 @@ export default function Settings() {
         setOrgConfig(data);
       }
     } catch (err) {
-      console.error('Error fetching org config:', err);
+      console.warn('Organization settings not available:', err);
+      // Set default config when table doesn't exist
+      setOrgConfig({
+        id: 'default',
+        org_id: currentOrg.id,
+        default_framework_version: '1.0',
+        default_assistant_version_id: null,
+        tool_flags: {
+          require_suitability_first: false,
+          enable_compliance_mode: false,
+          require_disclosure: false
+        }
+      });
     }
   };
 
@@ -214,6 +227,13 @@ export default function Settings() {
 
     try {
       setSaving(true);
+      
+      // Skip update if table doesn't exist (using default config)
+      if (orgConfig.id === 'default') {
+        alert('Settings updates not available yet. Please run database migrations.');
+        return;
+      }
+
       const { error } = await (supabase as any)
         .from('org_ai_configs')
         .update(updates)
@@ -224,7 +244,7 @@ export default function Settings() {
       alert('Settings updated successfully!');
     } catch (err) {
       console.error('Error updating org config:', err);
-      alert('Failed to update settings.');
+      alert('Settings updates not available yet. Please run database migrations.');
     } finally {
       setSaving(false);
     }

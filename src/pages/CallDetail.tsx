@@ -212,7 +212,7 @@ export default function CallDetail() {
         alert('This call is already in the review queue.');
       } else {
         console.error('Error sending to review:', err);
-        alert('Failed to send call to review queue.');
+        alert('Review queue not available yet. Please run database migrations.');
       }
     }
   };
@@ -237,7 +237,7 @@ export default function CallDetail() {
       setShowCoachingModal(false);
     } catch (err) {
       console.error('Error creating coaching task:', err);
-      alert('Failed to create coaching task.');
+      alert('Coaching tasks not available yet. Please run database migrations.');
     }
   };
 
