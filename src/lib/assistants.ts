@@ -12,10 +12,26 @@ export interface AssistantVersion {
 
 /**
  * Get the active assistant version for an organization
+ * First checks org settings default, then falls back to is_active flag
  * Returns null if no active version is found
  */
 export async function getActiveAssistantVersion(orgId: string): Promise<AssistantVersion | null> {
   try {
+    // First check if org has a default assistant version set
+    const { data: orgConfig } = await (supabase as any)
+      .from('org_ai_configs')
+      .select(`
+        default_assistant_version_id,
+        default_assistant_version:ai_assistant_versions(*)
+      `)
+      .eq('org_id', orgId)
+      .single();
+
+    if (orgConfig?.default_assistant_version) {
+      return orgConfig.default_assistant_version;
+    }
+
+    // Fall back to the is_active flag for backwards compatibility
     const { data, error } = await (supabase as any)
       .from('ai_assistant_versions')
       .select('*')

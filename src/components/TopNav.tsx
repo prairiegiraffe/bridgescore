@@ -46,6 +46,14 @@ export default function TopNav() {
                     Team
                   </Link>
                 )}
+                {FLAGS.SETTINGS && (
+                  <Link
+                    to="/settings"
+                    className="text-gray-900 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+                  >
+                    Settings
+                  </Link>
+                )}
               </>
             )}
             {user ? (

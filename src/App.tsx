@@ -9,6 +9,7 @@ import CallDetail from './pages/CallDetail';
 import Demo from './pages/Demo';
 import Assistants from './pages/admin/Assistants';
 import Team from './pages/Team';
+import Settings from './pages/Settings';
 
 function App() {
   return (
@@ -50,6 +51,14 @@ function App() {
                 element={
                   <AuthGate>
                     <Team />
+                  </AuthGate>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <AuthGate>
+                    <Settings />
                   </AuthGate>
                 }
               />
