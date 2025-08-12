@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase';
 
 export default function Sidebar() {
   const { user, signOut } = useAuth();
-  const { currentOrg, switchOrg, userOrgs } = useOrg();
+  const { currentOrg, setCurrentOrg, organizations } = useOrg();
   const location = useLocation();
   const navigate = useNavigate();
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -136,13 +136,13 @@ export default function Sidebar() {
                   </svg>
                 </button>
                 
-                {showOrgMenu && userOrgs.length > 1 && (
+                {showOrgMenu && organizations.length > 1 && (
                   <div className="absolute mt-2 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
-                    {userOrgs.map((org) => (
+                    {organizations.map((org: any) => (
                       <button
                         key={org.id}
                         onClick={() => {
-                          switchOrg(org.id);
+                          setCurrentOrg(org);
                           setShowOrgMenu(false);
                         }}
                         className={`block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${
