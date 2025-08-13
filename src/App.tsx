@@ -10,6 +10,7 @@ import Demo from './pages/Demo';
 import OrganizationManagement from './pages/admin/OrganizationManagement';
 import Team from './pages/Team';
 import Settings from './pages/Settings';
+import Resources from './pages/Resources';
 
 function AppContent() {
   const location = useLocation();
@@ -61,6 +62,14 @@ function AppContent() {
                 element={
                   <AuthGate>
                     <Settings />
+                  </AuthGate>
+                }
+              />
+              <Route
+                path="/resources"
+                element={
+                  <AuthGate>
+                    <Resources />
                   </AuthGate>
                 }
               />
