@@ -998,7 +998,7 @@ function DebugTab({ rawResponse, call }: DebugTabProps) {
                             Copy
                           </button>
                           <a
-                            href={`https://platform.openai.com/playground/threads/${step.openaiThreadId || step.threadId}`}
+                            href={`https://platform.openai.com/playground/assistants?assistant=${debugData.assistantId || currentOrg?.openai_assistant_id}&thread=${step.openaiThreadId || step.threadId}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
@@ -1024,7 +1024,7 @@ function DebugTab({ rawResponse, call }: DebugTabProps) {
                               Copy
                             </button>
                             <a
-                              href={`https://platform.openai.com/playground/threads/${step.openaiThreadId || step.threadId}/runs/${step.openaiRunId || step.runId}`}
+                              href={`https://platform.openai.com/playground/assistants?assistant=${debugData.assistantId || currentOrg?.openai_assistant_id}&thread=${step.openaiThreadId || step.threadId}&run=${step.openaiRunId || step.runId}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
@@ -1064,7 +1064,7 @@ function DebugTab({ rawResponse, call }: DebugTabProps) {
                         Copy
                       </button>
                       <a
-                        href={`https://platform.openai.com/playground/threads/${coaching.coachingThreadId}`}
+                        href={`https://platform.openai.com/playground/assistants?assistant=${debugData.assistantId || currentOrg?.openai_assistant_id}&thread=${coaching.coachingThreadId}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
@@ -1091,7 +1091,7 @@ function DebugTab({ rawResponse, call }: DebugTabProps) {
                         Copy
                       </button>
                       <a
-                        href={`https://platform.openai.com/playground/threads/${coaching.coachingThreadId}/runs/${coaching.coachingRunId}`}
+                        href={`https://platform.openai.com/playground/assistants?assistant=${debugData.assistantId || currentOrg?.openai_assistant_id}&thread=${coaching.coachingThreadId}&run=${coaching.coachingRunId}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
