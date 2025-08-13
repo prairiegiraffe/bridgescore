@@ -207,11 +207,7 @@ export default function OrganizationManagement() {
     if (!selectedOrg) return;
 
     try {
-      // If model is being updated and we have an assistant ID, update the assistant model via OpenAI API
-      if (openaiData.model && openaiData.assistant_id) {
-        await updateAssistantModel(openaiData.assistant_id, openaiData.model);
-      }
-
+      // Update the database with the new settings
       const { error } = await (supabase as any)
         .from('organizations')
         .update({
@@ -232,37 +228,6 @@ export default function OrganizationManagement() {
     }
   };
 
-  const updateAssistantModel = async (assistantId: string, model: string) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No session');
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-operations`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            action: 'update_assistant_model',
-            assistantId,
-            model
-          })
-        }
-      );
-
-      const result = await response.json();
-      
-      if (!response.ok || result.error) {
-        throw new Error(result.error || 'Failed to update assistant model');
-      }
-    } catch (err) {
-      console.error('Error updating assistant model:', err);
-      throw err;
-    }
-  };
 
   const autoCreateOpenAI = async () => {
     if (!selectedOrg) return;
