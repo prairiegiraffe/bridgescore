@@ -67,6 +67,16 @@ export default function Dashboard() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveViewName, setSaveViewName] = useState('');
   
+  // Stats state
+  const [userStats, setUserStats] = useState({
+    averageScore: 0,
+    totalCalls: 0,
+    closeRate: 0,
+    improvement: 0,
+    flaggedCalls: 0,
+    last30DaysAvg: 0
+  });
+  
   const { user } = useAuth();
   const { currentOrg } = useOrg();
   const navigate = useNavigate();
@@ -85,6 +95,7 @@ export default function Dashboard() {
   // Fetch recent calls when user, org, or filters change
   useEffect(() => {
     fetchRecentCalls();
+    fetchUserStats();
   }, [user, currentOrg, searchParams]);
 
   // Load filter data
@@ -163,6 +174,95 @@ export default function Dashboard() {
       console.error('Error fetching calls:', err);
     } finally {
       setCallsLoading(false);
+    }
+  };
+
+  const fetchUserStats = async () => {
+    if (!user) return;
+    
+    try {
+      // Get date 30 days ago
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      // Fetch all user's calls for stats
+      let statsQuery = (supabase as any)
+        .from('calls')
+        .select('score_total, created_at, flagged_for_review');
+      
+      // Filter by org or user
+      if (FLAGS.ORGS && currentOrg) {
+        statsQuery = statsQuery.eq('org_id', currentOrg.id).eq('user_id', user.id);
+      } else {
+        statsQuery = statsQuery.eq('user_id', user.id);
+      }
+      
+      const { data: allCalls, error } = await statsQuery;
+      
+      if (error) {
+        console.error('Error fetching user stats:', error);
+        return;
+      }
+      
+      if (!allCalls || allCalls.length === 0) {
+        setUserStats({
+          averageScore: 0,
+          totalCalls: 0,
+          closeRate: 0,
+          improvement: 0,
+          flaggedCalls: 0,
+          last30DaysAvg: 0
+        });
+        return;
+      }
+      
+      // Calculate stats
+      const totalCalls = allCalls.length;
+      const totalScore = allCalls.reduce((sum: number, call: any) => sum + call.score_total, 0);
+      const averageScore = totalScore / totalCalls;
+      
+      // Calls with score >= 16 (80%)
+      const highScoringCalls = allCalls.filter((call: any) => call.score_total >= 16).length;
+      const closeRate = (highScoringCalls / totalCalls) * 100;
+      
+      // Flagged calls
+      const flaggedCalls = allCalls.filter((call: any) => call.flagged_for_review).length;
+      
+      // Last 30 days average
+      const recentCalls = allCalls.filter((call: any) => 
+        new Date(call.created_at) >= thirtyDaysAgo
+      );
+      const recentAvg = recentCalls.length > 0 
+        ? recentCalls.reduce((sum: number, call: any) => sum + call.score_total, 0) / recentCalls.length
+        : 0;
+      
+      // Calculate improvement (compare first half to second half of calls)
+      let improvement = 0;
+      if (totalCalls >= 10) {
+        const midpoint = Math.floor(totalCalls / 2);
+        const sortedCalls = [...allCalls].sort((a: any, b: any) => 
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        const firstHalf = sortedCalls.slice(0, midpoint);
+        const secondHalf = sortedCalls.slice(midpoint);
+        
+        const firstHalfAvg = firstHalf.reduce((sum: number, call: any) => sum + call.score_total, 0) / firstHalf.length;
+        const secondHalfAvg = secondHalf.reduce((sum: number, call: any) => sum + call.score_total, 0) / secondHalf.length;
+        
+        improvement = ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100;
+      }
+      
+      setUserStats({
+        averageScore: Math.round(averageScore * 10) / 10,
+        totalCalls,
+        closeRate: Math.round(closeRate),
+        improvement: Math.round(improvement * 10) / 10,
+        flaggedCalls,
+        last30DaysAvg: Math.round(recentAvg * 10) / 10
+      });
+      
+    } catch (err) {
+      console.error('Error calculating user stats:', err);
     }
   };
 
@@ -511,8 +611,9 @@ export default function Dashboard() {
       // Navigate to call detail page
       navigate(`/calls/${data.id}`);
       
-      // Refresh the recent calls list
+      // Refresh the recent calls list and stats
       fetchRecentCalls();
+      fetchUserStats();
     } catch (err) {
       console.error('Error creating call:', err);
       setError('Failed to create call. Please try again.');
@@ -720,6 +821,104 @@ export default function Dashboard() {
           </button>
         </form>
       </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        {/* Average Score (Last 30 Days) */}
+        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+          <div className="flex items-center">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600">Average Score (Last 30 Days)</p>
+              <div className="flex items-baseline">
+                <p className="text-2xl font-semibold text-gray-900">
+                  {userStats.last30DaysAvg || 0}
+                </p>
+                <p className="ml-2 text-sm text-gray-500">/20</p>
+              </div>
+            </div>
+            <div className="flex-shrink-0">
+              <svg className="h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Total Calls */}
+        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+          <div className="flex items-center">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600">Calls Analyzed</p>
+              <div className="flex items-baseline">
+                <p className="text-2xl font-semibold text-gray-900">
+                  {userStats.totalCalls}
+                </p>
+              </div>
+            </div>
+            <div className="flex-shrink-0">
+              <svg className="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Close Rate (16+ Scores) */}
+        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
+          <div className="flex items-center">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600">Close Rate (16+ Scores)</p>
+              <div className="flex items-baseline">
+                <p className="text-2xl font-semibold text-gray-900">
+                  {userStats.closeRate}%
+                </p>
+              </div>
+            </div>
+            <div className="flex-shrink-0">
+              <svg className="h-8 w-8 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Performance Improvement */}
+        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
+          <div className="flex items-center">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600">Performance Improvement</p>
+              <div className="flex items-baseline">
+                <p className={`text-2xl font-semibold ${userStats.improvement >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {userStats.improvement > 0 ? '+' : ''}{userStats.improvement}%
+                </p>
+              </div>
+            </div>
+            <div className="flex-shrink-0">
+              <svg className={`h-8 w-8 ${userStats.improvement >= 0 ? 'text-purple-400' : 'text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={userStats.improvement >= 0 ? "M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" : "M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"} />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Additional Stats Row */}
+      {userStats.flaggedCalls > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-800">
+                <span className="font-medium">{userStats.flaggedCalls}</span> call{userStats.flaggedCalls !== 1 ? 's' : ''} flagged for review
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filter Panel */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">
