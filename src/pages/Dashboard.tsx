@@ -263,6 +263,8 @@ export default function Dashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
+      console.log('Starting audio transcription...', audioFile.name);
+
       const formData = new FormData();
       formData.append('audio', audioFile);
       formData.append('action', 'transcribe_audio');
@@ -278,16 +280,48 @@ export default function Dashboard() {
         }
       );
 
-      const result = await response.json();
-      
-      if (!response.ok || result.error) {
-        throw new Error(result.error || 'Failed to transcribe audio');
+      console.log('Transcription response status:', response.status);
+      console.log('Transcription response headers:', Object.fromEntries(response.headers.entries()));
+
+      // Get raw response text first for debugging
+      const rawResponse = await response.text();
+      console.log('Raw transcription response:', rawResponse);
+
+      if (!response.ok) {
+        console.error('Transcription failed with status:', response.status);
+        throw new Error(`Server error (${response.status}): ${rawResponse}`);
       }
 
+      // Try to parse as JSON
+      let result;
+      try {
+        result = JSON.parse(rawResponse);
+      } catch (jsonError) {
+        console.error('JSON parsing failed:', jsonError);
+        console.error('Raw response was:', rawResponse);
+        throw new Error('Invalid response format from transcription service. Please try again.');
+      }
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      if (!result.transcription) {
+        throw new Error('No transcription received from service');
+      }
+
+      console.log('Transcription successful, length:', result.transcription.length);
       return result.transcription;
+
     } catch (err) {
       console.error('Error transcribing audio:', err);
-      throw new Error(`Audio transcription failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      
+      // Re-throw with better error context
+      if (err instanceof Error) {
+        throw err; // Preserve the specific error message
+      } else {
+        throw new Error('Unknown error during audio transcription');
+      }
     }
   };
 

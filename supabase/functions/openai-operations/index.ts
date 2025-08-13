@@ -849,7 +849,7 @@ async function transcribeAudio(
     const formData = new FormData();
     formData.append('file', audioFile);
     formData.append('model', 'whisper-1');
-    formData.append('response_format', 'json'); // Changed to JSON for better error handling
+    formData.append('response_format', 'text'); // Use text format for simplicity
     
     // Optional: Add language parameter for better accuracy
     formData.append('language', 'en');
@@ -863,39 +863,52 @@ async function transcribeAudio(
     });
 
     console.log(`Whisper API response status: ${response.status}`);
+    console.log(`Whisper API response headers:`, Object.fromEntries(response.headers.entries()));
+
+    // Get the raw response first for debugging
+    const rawResponse = await response.text();
+    console.log(`Whisper API raw response: "${rawResponse}"`);
+    console.log(`Response length: ${rawResponse.length}`);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Whisper API error: ${errorText}`);
-      throw new Error(`Transcription API error (${response.status}): ${errorText}`);
+      console.error(`Whisper API error: ${rawResponse}`);
+      throw new Error(`Transcription API error (${response.status}): ${rawResponse}`);
     }
 
-    const result = await response.json();
-    console.log('Whisper API response received successfully');
+    // For text format, the response is just the transcribed text
+    const transcription = rawResponse.trim();
     
-    if (!result.text) {
-      throw new Error('No transcription text in response');
+    if (!transcription) {
+      throw new Error('No transcription text received from API');
     }
     
+    console.log(`Transcription successful: ${transcription.length} characters`);
+    
     return {
-      transcription: result.text.trim(),
+      transcription: transcription,
       fileName: audioFile.name,
       fileSize: audioFile.size,
-      duration: result.duration || null,
-      language: result.language || 'en',
       success: true
     };
     
   } catch (error) {
     console.error('Error transcribing audio:', error);
+    console.error('Error stack:', error.stack);
     
     // Provide more specific error messages
-    if (error.message.includes('JSON')) {
-      throw new Error('Audio transcription failed: Invalid response from OpenAI. Please try again.');
-    } else if (error.message.includes('413')) {
+    if (error.message.includes('JSON at position')) {
+      // This suggests we're trying to parse non-JSON as JSON somewhere
+      throw new Error('Audio transcription failed: Response format error. Please try again.');
+    } else if (error.message.includes('413') || error.message.includes('too large')) {
       throw new Error('Audio file is too large. Please use a file smaller than 25MB.');
-    } else if (error.message.includes('415')) {
+    } else if (error.message.includes('415') || error.message.includes('format')) {
       throw new Error('Audio format not supported. Please use MP3, WAV, MP4, M4A, or WebM.');
+    } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+      throw new Error('OpenAI API key is invalid or missing. Please contact support.');
+    } else if (error.message.includes('429') || error.message.includes('rate limit')) {
+      throw new Error('Too many requests. Please wait a moment and try again.');
+    } else if (error.message.includes('network') || error.message.includes('fetch')) {
+      throw new Error('Network error. Please check your connection and try again.');
     } else {
       throw new Error(`Audio transcription failed: ${error.message}`);
     }
