@@ -15,6 +15,16 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- Drop existing policies if they exist and recreate them
+DO $$
+BEGIN
+    -- Drop existing policies if they exist
+    DROP POLICY IF EXISTS "Anyone can view resources" ON storage.objects;
+    DROP POLICY IF EXISTS "SuperAdmins can upload resources" ON storage.objects;
+    DROP POLICY IF EXISTS "SuperAdmins can update resources" ON storage.objects;
+    DROP POLICY IF EXISTS "SuperAdmins can delete resources" ON storage.objects;
+END $$;
+
 -- Set up RLS policies for the resources bucket
 CREATE POLICY "Anyone can view resources" ON storage.objects
 FOR SELECT USING (bucket_id = 'resources');
