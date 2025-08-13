@@ -9,7 +9,6 @@ import CallDetail from './pages/CallDetail';
 import Demo from './pages/Demo';
 import OrganizationManagement from './pages/admin/OrganizationManagement';
 import Team from './pages/Team';
-import Settings from './pages/Settings';
 import Resources from './pages/Resources';
 
 function AppContent() {
@@ -54,14 +53,6 @@ function AppContent() {
                 element={
                   <AuthGate>
                     <Team />
-                  </AuthGate>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <AuthGate>
-                    <Settings />
                   </AuthGate>
                 }
               />
