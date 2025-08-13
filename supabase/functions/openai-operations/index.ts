@@ -548,7 +548,13 @@ Focus on specific, actionable feedback based on the Bridge Selling methodology.`
   }
 
   const rawResponse = assistantMessage.content[0].text.value
-  return parseCoachingResponse(rawResponse)
+  const parsedCoaching = parseCoachingResponse(rawResponse)
+  
+  return {
+    ...parsedCoaching,
+    coachingThreadId: thread.id, // For debugging purposes
+    coachingRunId: run.id // For debugging purposes
+  }
 }
 
 /**
@@ -632,7 +638,9 @@ async function scoreIndividualStep(
     notes: scoreData.notes,
     reasoning: scoreData.reasoning,
     threadId: thread.id,
-    runId: run.id
+    runId: run.id,
+    openaiThreadId: thread.id, // For debugging purposes
+    openaiRunId: run.id // For debugging purposes
   }
 }
 

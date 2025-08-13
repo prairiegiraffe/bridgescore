@@ -45,12 +45,13 @@ export default function CallDetail() {
   const [call, setCall] = useState<CallData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'scorecard' | 'coaching' | 'transcript' | 'ai-reasoning'>('scorecard');
+  const [activeTab, setActiveTab] = useState<'scorecard' | 'coaching' | 'transcript' | 'ai-reasoning' | 'debug'>('scorecard');
   const [memberRole, setMemberRole] = useState<string | null>(null);
   const [showCoachingModal, setShowCoachingModal] = useState(false);
   const [showRescoreMenu, setShowRescoreMenu] = useState(false);
   const [assistantVersions, setAssistantVersions] = useState<AssistantVersion[]>([]);
   const [rescoring, setRescoring] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   useEffect(() => {
     fetchCall();
@@ -59,6 +60,7 @@ export default function CallDetail() {
   // Check user's role in org
   useEffect(() => {
     checkUserRole();
+    checkSuperAdminAccess();
   }, [user, currentOrg]);
 
   // Fetch assistant versions when needed
@@ -197,6 +199,31 @@ export default function CallDetail() {
       .slice(0, 3);
 
     return { strengths, improvements };
+  };
+
+  const checkSuperAdminAccess = async () => {
+    if (!user || !currentOrg) {
+      setIsSuperAdmin(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await (supabase as any)
+        .from('memberships')
+        .select('is_superadmin')
+        .eq('user_id', user.id)
+        .eq('is_superadmin', true)
+        .single();
+
+      if (!error && data) {
+        setIsSuperAdmin(true);
+      } else {
+        setIsSuperAdmin(false);
+      }
+    } catch (err) {
+      console.error('Error checking SuperAdmin access:', err);
+      setIsSuperAdmin(false);
+    }
   };
 
   // Render score breakdown for both old and new formats
@@ -465,6 +492,18 @@ export default function CallDetail() {
                 AI Reasoning
               </button>
             )}
+            {isSuperAdmin && call.openai_raw_response && (
+              <button
+                onClick={() => setActiveTab('debug')}
+                className={`py-3 px-6 text-sm font-medium ${
+                  activeTab === 'debug'
+                    ? 'border-b-2 border-purple-500 text-purple-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                🔧 Debug
+              </button>
+            )}
           </nav>
         </div>
 
@@ -531,6 +570,10 @@ export default function CallDetail() {
 
           {activeTab === 'ai-reasoning' && call.openai_raw_response && (
             <AIReasoningTab rawResponse={call.openai_raw_response} />
+          )}
+          
+          {activeTab === 'debug' && isSuperAdmin && call.openai_raw_response && (
+            <DebugTab rawResponse={call.openai_raw_response} />
           )}
         </div>
       </div>
@@ -832,6 +875,185 @@ function AICoachingTab({ coaching }: AICoachingTabProps) {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Debug Tab Component (SuperAdmin only)
+interface DebugTabProps {
+  rawResponse: any;
+}
+
+function DebugTab({ rawResponse }: DebugTabProps) {
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    alert(`${label} copied to clipboard\!`);
+  };
+
+  return (
+    <div>
+      <h3 className="text-lg font-semibold text-purple-900 mb-6 flex items-center">
+        🔧 SuperAdmin Debug Information
+        <span className="ml-2 text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full">
+          Private
+        </span>
+      </h3>
+
+      <div className="space-y-6">
+        {/* Step Scores Debug */}
+        {rawResponse.stepScores && Array.isArray(rawResponse.stepScores) && (
+          <div>
+            <h4 className="text-md font-semibold text-purple-800 mb-4">Step Scoring Threads</h4>
+            <div className="space-y-3">
+              {rawResponse.stepScores.map((step: any, index: number) => (
+                <div key={index} className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h5 className="font-medium text-purple-900">{step.stepName}</h5>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      step.color === "green" ? "bg-green-100 text-green-800" :
+                      step.color === "yellow" ? "bg-yellow-100 text-yellow-800" :
+                      "bg-red-100 text-red-800"
+                    }`}>
+                      {step.credit} × {step.weight} = {step.credit * step.weight}
+                    </span>
+                  </div>
+                  
+                  {step.openaiThreadId && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                      <div>
+                        <label className="block text-xs font-medium text-purple-700 mb-1">
+                          OpenAI Thread ID:
+                        </label>
+                        <div className="flex items-center space-x-2">
+                          <code className="flex-1 bg-white px-2 py-1 rounded border text-xs font-mono">
+                            {step.openaiThreadId}
+                          </code>
+                          <button
+                            onClick={() => copyToClipboard(step.openaiThreadId, "Thread ID")}
+                            className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {step.openaiRunId && (
+                        <div>
+                          <label className="block text-xs font-medium text-purple-700 mb-1">
+                            OpenAI Run ID:
+                          </label>
+                          <div className="flex items-center space-x-2">
+                            <code className="flex-1 bg-white px-2 py-1 rounded border text-xs font-mono">
+                              {step.openaiRunId}
+                            </code>
+                            <button
+                              onClick={() => copyToClipboard(step.openaiRunId, "Run ID")}
+                              className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Coaching Debug */}
+        {rawResponse.coaching && (rawResponse.coaching.coachingThreadId || rawResponse.coaching.coachingRunId) && (
+          <div>
+            <h4 className="text-md font-semibold text-purple-800 mb-4">Coaching Generation Thread</h4>
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {rawResponse.coaching.coachingThreadId && (
+                  <div>
+                    <label className="block text-xs font-medium text-purple-700 mb-1">
+                      Coaching Thread ID:
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <code className="flex-1 bg-white px-2 py-1 rounded border text-xs font-mono">
+                        {rawResponse.coaching.coachingThreadId}
+                      </code>
+                      <button
+                        onClick={() => copyToClipboard(rawResponse.coaching.coachingThreadId, "Coaching Thread ID")}
+                        className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {rawResponse.coaching.coachingRunId && (
+                  <div>
+                    <label className="block text-xs font-medium text-purple-700 mb-1">
+                      Coaching Run ID:
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <code className="flex-1 bg-white px-2 py-1 rounded border text-xs font-mono">
+                        {rawResponse.coaching.coachingRunId}
+                      </code>
+                      <button
+                        onClick={() => copyToClipboard(rawResponse.coaching.coachingRunId, "Coaching Run ID")}
+                        className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* General Debug Info */}
+        <div>
+          <h4 className="text-md font-semibold text-purple-800 mb-4">General Debug Information</h4>
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div>
+                <label className="block font-medium text-purple-700 mb-1">Assistant ID:</label>
+                <code className="bg-white px-2 py-1 rounded border block">
+                  {rawResponse.assistantId || "Not available"}
+                </code>
+              </div>
+              <div>
+                <label className="block font-medium text-purple-700 mb-1">Scored At:</label>
+                <code className="bg-white px-2 py-1 rounded border block">
+                  {rawResponse.scoredAt ? new Date(rawResponse.scoredAt).toLocaleString() : "Not available"}
+                </code>
+              </div>
+              <div>
+                <label className="block font-medium text-purple-700 mb-1">Total Score:</label>
+                <code className="bg-white px-2 py-1 rounded border block">
+                  {rawResponse.total || "Not available"}
+                </code>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start">
+            <svg className="w-5 h-5 text-blue-400 mr-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            <div>
+              <h3 className="text-sm font-medium text-blue-800">
+                How to use Thread IDs
+              </h3>
+              <div className="mt-2 text-sm text-blue-700">
+                <p>Copy any Thread ID above and paste it in the OpenAI Dashboard → Playground → Threads to see the exact conversation and prompts sent to the AI assistant.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
