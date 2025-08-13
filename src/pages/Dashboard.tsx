@@ -47,6 +47,9 @@ interface SavedView {
 export default function Dashboard() {
   const [title, setTitle] = useState('');
   const [transcript, setTranscript] = useState('');
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [uploadMode, setUploadMode] = useState<'text' | 'audio'>('text');
+  const [transcribing, setTranscribing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recentCalls, setRecentCalls] = useState<Call[]>([]);
@@ -255,6 +258,39 @@ export default function Dashboard() {
     }
   };
 
+  const transcribeAudioWithOpenAI = async (audioFile: File) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session');
+
+      const formData = new FormData();
+      formData.append('audio', audioFile);
+      formData.append('action', 'transcribe_audio');
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-operations`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: formData
+        }
+      );
+
+      const result = await response.json();
+      
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to transcribe audio');
+      }
+
+      return result.transcription;
+    } catch (err) {
+      console.error('Error transcribing audio:', err);
+      throw new Error(`Audio transcription failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
   const scoreCallWithOpenAI = async (transcript: string, org: any) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -289,8 +325,56 @@ export default function Dashboard() {
     }
   };
 
+  const handleAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file type
+      const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/mp4', 'audio/m4a', 'audio/webm'];
+      if (!allowedTypes.includes(file.type) && !file.name.match(/\.(mp3|wav|mp4|m4a|webm)$/i)) {
+        setError('Please select a valid audio file (MP3, WAV, MP4, M4A, or WebM)');
+        return;
+      }
+      
+      // Check file size (max 25MB for Whisper API)
+      if (file.size > 25 * 1024 * 1024) {
+        setError('Audio file must be less than 25MB');
+        return;
+      }
+      
+      setAudioFile(file);
+      setError(null);
+    }
+  };
+
+  const handleTranscribeAudio = async () => {
+    if (!audioFile) return;
+    
+    setTranscribing(true);
+    setError(null);
+    
+    try {
+      const transcription = await transcribeAudioWithOpenAI(audioFile);
+      setTranscript(transcription);
+      
+      // Switch to text mode to show the transcription
+      setUploadMode('text');
+    } catch (err) {
+      console.error('Error transcribing audio:', err);
+      setError(err instanceof Error ? err.message : 'Failed to transcribe audio');
+    } finally {
+      setTranscribing(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // If in audio mode and no transcript, transcribe first
+    if (uploadMode === 'audio' && !transcript.trim() && audioFile) {
+      await handleTranscribeAudio();
+      return;
+    }
+    
     if (!transcript.trim()) return;
 
     setLoading(true);
@@ -302,6 +386,35 @@ export default function Dashboard() {
         setError('System is being configured. Please contact support@bridgeselling.com for information.');
         setLoading(false);
         return;
+      }
+
+      // Upload audio file to storage if we have one
+      let audioFileUrl = null;
+      if (audioFile) {
+        try {
+          const fileExt = audioFile.name.split('.').pop();
+          const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+          const filePath = `calls/${fileName}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('call-audio')
+            .upload(filePath, audioFile, {
+              cacheControl: '3600',
+              upsert: false
+            });
+            
+          if (uploadError) {
+            console.warn('Audio upload failed:', uploadError.message);
+          } else {
+            const { data: urlData } = supabase.storage
+              .from('call-audio')
+              .getPublicUrl(filePath);
+            audioFileUrl = urlData.publicUrl;
+          }
+        } catch (audioError) {
+          console.warn('Audio upload failed:', audioError);
+          // Continue without audio file - don't fail the call creation
+        }
       }
 
       // Score the transcript using OpenAI
@@ -325,6 +438,7 @@ export default function Dashboard() {
         openai_raw_response: score,
         framework_version: '1.0',
         assistant_version_id: assistantVersionId,
+        audio_file_url: audioFileUrl,
       };
 
       const callData = FLAGS.ORGS && currentOrg 
@@ -390,20 +504,138 @@ export default function Dashboard() {
             />
           </div>
 
+          {/* Upload Mode Toggle */}
           <div>
-            <label htmlFor="transcript" className="block text-sm font-medium text-gray-700 mb-2">
-              Call Transcript *
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              How would you like to provide the call content? *
             </label>
-            <textarea
-              id="transcript"
-              value={transcript}
-              onChange={(e) => setTranscript(e.target.value)}
-              required
-              rows={12}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Paste your call transcript here..."
-            />
+            <div className="flex space-x-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="uploadMode"
+                  value="text"
+                  checked={uploadMode === 'text'}
+                  onChange={(e) => setUploadMode(e.target.value as 'text' | 'audio')}
+                  className="mr-2"
+                />
+                <span className="text-sm text-gray-700">Paste Transcript</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="uploadMode"
+                  value="audio"
+                  checked={uploadMode === 'audio'}
+                  onChange={(e) => setUploadMode(e.target.value as 'text' | 'audio')}
+                  className="mr-2"
+                />
+                <span className="text-sm text-gray-700">Upload Audio File</span>
+              </label>
+            </div>
           </div>
+
+          {/* Text Input Mode */}
+          {uploadMode === 'text' && (
+            <div>
+              <label htmlFor="transcript" className="block text-sm font-medium text-gray-700 mb-2">
+                Call Transcript *
+              </label>
+              <textarea
+                id="transcript"
+                value={transcript}
+                onChange={(e) => setTranscript(e.target.value)}
+                required
+                rows={12}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Paste your call transcript here..."
+              />
+            </div>
+          )}
+
+          {/* Audio Upload Mode */}
+          {uploadMode === 'audio' && (
+            <div>
+              <label htmlFor="audioFile" className="block text-sm font-medium text-gray-700 mb-2">
+                Upload Audio File *
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <input
+                  type="file"
+                  id="audioFile"
+                  accept=".mp3,.wav,.mp4,.m4a,.webm,audio/*"
+                  onChange={handleAudioFileChange}
+                  className="hidden"
+                  required={uploadMode === 'audio' && !audioFile}
+                />
+                <label htmlFor="audioFile" className="cursor-pointer">
+                  {audioFile ? (
+                    <div className="flex items-center justify-center space-x-2">
+                      <span className="text-2xl">🎵</span>
+                      <div>
+                        <p className="text-sm font-medium text-green-600">{audioFile.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {audioFile.size > 1024 * 1024 
+                            ? `${(audioFile.size / (1024 * 1024)).toFixed(1)} MB`
+                            : `${(audioFile.size / 1024).toFixed(0)} KB`
+                          }
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="text-2xl text-gray-400">🎤</span>
+                      <p className="text-sm text-gray-600 mt-1">Click to select audio file</p>
+                      <p className="text-xs text-gray-400">MP3, WAV, MP4, M4A, WebM (Max 25MB)</p>
+                    </div>
+                  )}
+                </label>
+                {audioFile && (
+                  <div className="mt-3 flex justify-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAudioFile(null);
+                        setTranscript('');
+                      }}
+                      className="text-xs text-red-600 hover:text-red-800"
+                    >
+                      Remove file
+                    </button>
+                    {!transcript && (
+                      <button
+                        type="button"
+                        onClick={handleTranscribeAudio}
+                        disabled={transcribing}
+                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {transcribing ? 'Transcribing...' : 'Transcribe Audio'}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {/* Show transcript after transcription */}
+              {transcript && uploadMode === 'audio' && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Generated Transcript
+                  </label>
+                  <textarea
+                    value={transcript}
+                    onChange={(e) => setTranscript(e.target.value)}
+                    rows={8}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Transcript will appear here after processing..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    You can edit the transcript before scoring if needed.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
@@ -413,10 +645,17 @@ export default function Dashboard() {
 
           <button
             type="submit"
-            disabled={loading || !transcript.trim()}
+            disabled={loading || transcribing || (uploadMode === 'text' ? !transcript.trim() : !audioFile)}
             className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Scoring Call...' : 'Score Call'}
+            {loading 
+              ? 'Scoring Call...' 
+              : transcribing 
+              ? 'Transcribing...' 
+              : uploadMode === 'audio' && !transcript 
+              ? 'Transcribe & Score Call'
+              : 'Score Call'
+            }
           </button>
         </form>
       </div>

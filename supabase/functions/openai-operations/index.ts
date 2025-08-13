@@ -45,7 +45,48 @@ serve(async (req) => {
       throw new Error('Not authenticated')
     }
 
-    // Check if user is SuperAdmin
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
+
+    if (!openaiApiKey) {
+      throw new Error('OpenAI API key not configured')
+    }
+
+    let action: string;
+    let payload: any = {};
+
+    // Handle both JSON and multipart form data
+    const contentType = req.headers.get('content-type') || '';
+    
+    if (contentType.includes('multipart/form-data')) {
+      // Handle form data for audio uploads
+      const formData = await req.formData();
+      action = formData.get('action') as string;
+      
+      if (action === 'transcribe_audio') {
+        const audioFile = formData.get('audio') as File;
+        if (!audioFile) {
+          throw new Error('No audio file provided');
+        }
+        
+        // Transcription doesn't require SuperAdmin check - regular users can transcribe
+        const result = await transcribeAudio(audioFile, openaiApiKey);
+        return new Response(
+          JSON.stringify(result),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          },
+        );
+      }
+    } else {
+      // Handle JSON data
+      const requestData = await req.json();
+      action = requestData.action;
+      payload = { ...requestData };
+      delete payload.action;
+    }
+
+    // For non-transcription actions, check if user is SuperAdmin
     const { data: membership } = await supabaseClient
       .from('memberships')
       .select('is_superadmin')
@@ -55,13 +96,6 @@ serve(async (req) => {
 
     if (!membership) {
       throw new Error('Access denied: SuperAdmin required')
-    }
-
-    const { action, ...payload } = await req.json()
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
-
-    if (!openaiApiKey) {
-      throw new Error('OpenAI API key not configured')
     }
 
     const openaiHeaders = {
@@ -798,5 +832,50 @@ async function updateAssistantModel(
     assistantId: updatedAssistant.id,
     model: updatedAssistant.model,
     success: true
+  }
+}
+
+/**
+ * Transcribe audio using OpenAI Whisper
+ */
+async function transcribeAudio(
+  audioFile: File,
+  openaiApiKey: string
+) {
+  try {
+    // Create form data for Whisper API
+    const formData = new FormData();
+    formData.append('file', audioFile);
+    formData.append('model', 'whisper-1');
+    formData.append('response_format', 'text');
+    
+    // Optional: Add language parameter if needed
+    // formData.append('language', 'en');
+    
+    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Transcription failed: ${errorText}`);
+    }
+
+    const transcription = await response.text();
+    
+    return {
+      transcription: transcription.trim(),
+      fileName: audioFile.name,
+      fileSize: audioFile.size,
+      success: true
+    };
+    
+  } catch (error) {
+    console.error('Error transcribing audio:', error);
+    throw new Error(`Audio transcription failed: ${error.message}`);
   }
 }
