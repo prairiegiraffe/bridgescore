@@ -40,6 +40,14 @@ export default function OrganizationManagement() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showOpenAIModal, setShowOpenAIModal] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
+  const [showBrandingModal, setShowBrandingModal] = useState(false);
+  const [globalBranding, setGlobalBranding] = useState({
+    app_name: 'BridgeScore',
+    logo_url: '',
+    primary_color: '#3B82F6',
+    secondary_color: '#1E40AF',
+    accent_color: '#10B981'
+  });
 
   useEffect(() => {
     checkSuperAdminAccess();
@@ -48,6 +56,7 @@ export default function OrganizationManagement() {
   useEffect(() => {
     if (isSuperAdmin) {
       fetchOrganizations();
+      fetchGlobalBranding();
     }
   }, [isSuperAdmin]);
 
@@ -267,6 +276,42 @@ export default function OrganizationManagement() {
     }
   };
 
+  const fetchGlobalBranding = async () => {
+    try {
+      const { data, error } = await (supabase as any)
+        .rpc('get_global_branding');
+
+      if (error) throw error;
+      
+      if (data) {
+        setGlobalBranding(data);
+      }
+    } catch (err) {
+      console.error('Error fetching global branding:', err);
+    }
+  };
+
+  const updateGlobalBranding = async (brandingData: any) => {
+    if (!currentUser) return;
+
+    try {
+      const { data, error } = await (supabase as any)
+        .rpc('update_global_branding', {
+          new_settings: brandingData,
+          updated_by_user: currentUser.id
+        });
+
+      if (error) throw error;
+      
+      alert('Global branding updated successfully!');
+      await fetchGlobalBranding();
+      setShowBrandingModal(false);
+    } catch (err) {
+      console.error('Error updating global branding:', err);
+      alert(`Failed to update branding: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-6 lg:py-6">
@@ -290,6 +335,64 @@ export default function OrganizationManagement() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Organization Management</h1>
         <p className="text-gray-500 mt-1">Manage organizations and their users</p>
+      </div>
+
+      {/* Global Branding Section */}
+      <div className="mb-6">
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Global App Branding</h2>
+              <p className="text-sm text-gray-600 mt-1">Configure the app's logo, colors, and branding for all users</p>
+            </div>
+            <button
+              onClick={() => setShowBrandingModal(true)}
+              className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700"
+            >
+              Edit Branding
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+            <div className="p-4 border border-gray-200 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">App Name</h4>
+              <p className="text-lg font-semibold" style={{ color: globalBranding.primary_color }}>
+                {globalBranding.app_name}
+              </p>
+            </div>
+            
+            <div className="p-4 border border-gray-200 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Logo</h4>
+              {globalBranding.logo_url ? (
+                <img src={globalBranding.logo_url} alt="App Logo" className="h-8 w-auto" />
+              ) : (
+                <p className="text-sm text-gray-500">No logo set</p>
+              )}
+            </div>
+            
+            <div className="p-4 border border-gray-200 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Primary Color</h4>
+              <div className="flex items-center space-x-2">
+                <div 
+                  className="w-6 h-6 rounded border border-gray-300" 
+                  style={{ backgroundColor: globalBranding.primary_color }}
+                />
+                <span className="text-sm font-mono">{globalBranding.primary_color}</span>
+              </div>
+            </div>
+            
+            <div className="p-4 border border-gray-200 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Secondary Color</h4>
+              <div className="flex items-center space-x-2">
+                <div 
+                  className="w-6 h-6 rounded border border-gray-300" 
+                  style={{ backgroundColor: globalBranding.secondary_color }}
+                />
+                <span className="text-sm font-mono">{globalBranding.secondary_color}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -571,6 +674,15 @@ export default function OrganizationManagement() {
             await fetchOrganizations();
           }}
           isOrganization={true}
+        />
+      )}
+
+      {/* Global Branding Modal */}
+      {showBrandingModal && (
+        <GlobalBrandingModal
+          branding={globalBranding}
+          onClose={() => setShowBrandingModal(false)}
+          onUpdate={updateGlobalBranding}
         />
       )}
     </div>
@@ -1022,3 +1134,179 @@ function InviteUserModal({ organization, onClose, onInvite }: {
     </div>
   );
 }
+
+// Global Branding Modal
+function GlobalBrandingModal({ branding, onClose, onUpdate }: {
+  branding: any;
+  onClose: () => void;
+  onUpdate: (data: any) => void;
+}) {
+  const [appName, setAppName] = useState(branding.app_name || 'BridgeScore');
+  const [logoUrl, setLogoUrl] = useState(branding.logo_url || '');
+  const [primaryColor, setPrimaryColor] = useState(branding.primary_color || '#3B82F6');
+  const [secondaryColor, setSecondaryColor] = useState(branding.secondary_color || '#1E40AF');
+  const [accentColor, setAccentColor] = useState(branding.accent_color || '#10B981');
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setSaving(true);
+    try {
+      await onUpdate({
+        app_name: appName.trim(),
+        logo_url: logoUrl.trim(),
+        primary_color: primaryColor,
+        secondary_color: secondaryColor,
+        accent_color: accentColor
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <h3 className="text-lg font-semibold mb-4">Global App Branding</h3>
+        <p className="text-sm text-gray-600 mb-6">
+          Configure the global branding for the entire application. These settings will affect all users.
+        </p>
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              App Name
+            </label>
+            <input
+              type="text"
+              value={appName}
+              onChange={(e) => setAppName(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              placeholder="BridgeScore"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Logo URL
+            </label>
+            <input
+              type="url"
+              value={logoUrl}
+              onChange={(e) => setLogoUrl(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              placeholder="https://example.com/logo.png"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Enter a URL to an image file. Leave blank for no logo.
+            </p>
+            {logoUrl && (
+              <div className="mt-2">
+                <img src={logoUrl} alt="Logo Preview" className="h-12 w-auto border border-gray-200 rounded" />
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Primary Color
+              </label>
+              <div className="flex items-center space-x-3">
+                <input
+                  type="color"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="w-12 h-10 border border-gray-300 rounded"
+                />
+                <input
+                  type="text"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md font-mono"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Secondary Color
+              </label>
+              <div className="flex items-center space-x-3">
+                <input
+                  type="color"
+                  value={secondaryColor}
+                  onChange={(e) => setSecondaryColor(e.target.value)}
+                  className="w-12 h-10 border border-gray-300 rounded"
+                />
+                <input
+                  type="text"
+                  value={secondaryColor}
+                  onChange={(e) => setSecondaryColor(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md font-mono"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Accent Color
+              </label>
+              <div className="flex items-center space-x-3">
+                <input
+                  type="color"
+                  value={accentColor}
+                  onChange={(e) => setAccentColor(e.target.value)}
+                  className="w-12 h-10 border border-gray-300 rounded"
+                />
+                <input
+                  type="text"
+                  value={accentColor}
+                  onChange={(e) => setAccentColor(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Preview</h4>
+            <div className="flex items-center space-x-4">
+              {logoUrl && (
+                <img src={logoUrl} alt="Logo" className="h-8 w-auto" />
+              )}
+              <div>
+                <div className="font-semibold" style={{ color: primaryColor }}>
+                  {appName}
+                </div>
+                <div className="text-sm" style={{ color: secondaryColor }}>
+                  Sales Call Scoring Platform
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Branding'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+EOF < /dev/null
