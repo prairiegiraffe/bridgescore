@@ -58,114 +58,75 @@ export default function Resources() {
     try {
       setLoading(true);
       
-      // For now, we'll use mock data since the resources table doesn't exist yet
-      // In production, this would fetch from the database
-      const mockResources: Resource[] = [
-        {
-          id: '1',
-          title: 'BridgeSelling™ Framework Guide',
-          description: 'Complete guide to the 6-step BridgeSelling framework with examples and best practices.',
-          icon: '🌉',
-          category: 'Framework',
-          file_url: '/resources/bridgeselling-framework-guide.pdf',
-          last_updated: '2024-12-10',
-          created_by: 'BridgeSelling Team',
-          is_global: true,
-          download_count: 1247,
-          file_size: '2.3 MB',
-          file_type: 'PDF'
-        },
-        {
-          id: '2',
-          title: 'Magic Pivots Cheat Sheet',
-          description: 'Key phrases and questions to smoothly navigate between each step of the bridge.',
-          icon: '🎯',
-          category: 'Quick Reference',
-          file_url: '/resources/magic-pivots-cheat-sheet.pdf',
-          last_updated: '2024-12-08',
-          created_by: 'BridgeSelling Team',
-          is_global: true,
-          download_count: 892,
-          file_size: '1.1 MB',
-          file_type: 'PDF'
-        },
-        {
-          id: '3',
-          title: 'Call Scoring Criteria',
-          description: 'Detailed breakdown of how calls are scored and what constitutes excellent performance.',
-          icon: '📊',
-          category: 'Scoring',
-          file_url: '/resources/call-scoring-criteria.pdf',
-          last_updated: '2024-12-12',
-          created_by: 'BridgeSelling Team',
-          is_global: true,
-          download_count: 634,
-          file_size: '1.7 MB',
-          file_type: 'PDF'
-        },
-        {
-          id: '4',
-          title: 'Objection Handling Scripts',
-          description: 'Common objections and proven responses for each step of the sales process.',
-          icon: '🛡️',
-          category: 'Scripts',
-          file_url: '/resources/objection-handling-scripts.pdf',
-          last_updated: '2024-12-05',
-          created_by: 'BridgeSelling Team',
-          is_global: true,
-          download_count: 756,
-          file_size: '2.1 MB',
-          file_type: 'PDF'
-        },
-        {
-          id: '5',
-          title: 'Call Flow Templates',
-          description: 'Industry-specific call flow templates customized for different types of prospects.',
-          icon: '📝',
-          category: 'Templates',
-          file_url: '/resources/call-flow-templates.pdf',
-          last_updated: '2024-11-28',
-          created_by: 'BridgeSelling Team',
-          is_global: true,
-          download_count: 923,
-          file_size: '3.2 MB',
-          file_type: 'PDF'
-        },
-        {
-          id: '6',
-          title: 'Self-Coaching Worksheets',
-          description: 'Interactive worksheets to review your calls and identify improvement opportunities.',
-          icon: '🎓',
-          category: 'Worksheets',
-          file_url: '/resources/self-coaching-worksheets.pdf',
-          last_updated: '2024-12-01',
-          created_by: 'BridgeSelling Team',
-          is_global: true,
-          download_count: 445,
-          file_size: '1.9 MB',
-          file_type: 'PDF'
-        }
-      ];
+      // Fetch resources from database
+      const { data: resourcesData, error } = await supabase
+        .from('resources')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      setResources(mockResources);
+      if (error) {
+        throw error;
+      }
+
+      // Transform database records to match our Resource interface
+      const transformedResources: Resource[] = (resourcesData || []).map(resource => ({
+        id: resource.id,
+        title: resource.title,
+        description: resource.description,
+        icon: resource.icon || '📄',
+        category: resource.category,
+        file_url: resource.file_url,
+        external_url: resource.external_url,
+        last_updated: new Date(resource.updated_at).toISOString().split('T')[0],
+        created_by: 'SuperAdmin', // We could join with users table to get actual names
+        org_id: resource.org_id,
+        is_global: resource.is_global,
+        download_count: resource.download_count || 0,
+        file_size: resource.file_size,
+        file_type: resource.file_type?.toUpperCase() || 'FILE'
+      }));
+
+      setResources(transformedResources);
     } catch (err) {
       console.error('Error fetching resources:', err);
+      // Fall back to empty array instead of mock data
+      setResources([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDownload = async (resource: Resource) => {
-    // In a real implementation, this would:
-    // 1. Increment download count in database
-    // 2. Log the download for analytics
-    // 3. Handle file serving or redirect to external URL
-    
-    if (resource.external_url) {
-      window.open(resource.external_url, '_blank');
-    } else if (resource.file_url) {
-      // For now, just alert that this is a placeholder
-      alert(`This would download: ${resource.title}\nFile: ${resource.file_url}\nSize: ${resource.file_size}`);
+    try {
+      // Increment download count in database
+      await supabase
+        .from('resources')
+        .update({ download_count: (resource.download_count || 0) + 1 })
+        .eq('id', resource.id);
+      
+      // Update local state
+      setResources(prevResources => 
+        prevResources.map(r => 
+          r.id === resource.id 
+            ? { ...r, download_count: (r.download_count || 0) + 1 }
+            : r
+        )
+      );
+      
+      if (resource.external_url) {
+        window.open(resource.external_url, '_blank');
+      } else if (resource.file_url) {
+        // Open the file URL directly for download
+        window.open(resource.file_url, '_blank');
+      }
+    } catch (error) {
+      console.error('Error updating download count:', error);
+      // Still allow download even if count update fails
+      if (resource.external_url) {
+        window.open(resource.external_url, '_blank');
+      } else if (resource.file_url) {
+        window.open(resource.file_url, '_blank');
+      }
     }
   };
 
@@ -182,18 +143,31 @@ export default function Resources() {
     if (!confirmed) return;
     
     try {
-      // In a real implementation, this would:
-      // 1. Delete the file from Supabase Storage if it exists
-      // 2. Remove the record from the database
-      // 3. Update the local state
-      
-      if (resource.file_url && resource.file_url.startsWith('/resources/')) {
-        // This would delete from Supabase Storage
-        // const filePath = resource.file_url.replace('/resources/', '');
-        // await supabase.storage.from('resources').remove([filePath]);
+      // First, delete from database to get the file path
+      const { data: deletedResource, error: dbError } = await supabase
+        .from('resources')
+        .delete()
+        .eq('id', resource.id)
+        .select('file_path')
+        .single();
+
+      if (dbError) {
+        throw new Error(`Database error: ${dbError.message}`);
+      }
+
+      // Delete file from Supabase Storage if it exists
+      if (deletedResource?.file_path) {
+        const { error: storageError } = await supabase.storage
+          .from('resources')
+          .remove([deletedResource.file_path]);
+          
+        if (storageError) {
+          console.warn('Storage deletion failed:', storageError.message);
+          // Don't fail the whole operation if storage deletion fails
+        }
       }
       
-      // For now, just remove from local state since we're using mock data
+      // Update local state
       setResources(prevResources => 
         prevResources.filter(r => r.id !== resource.id)
       );
@@ -454,18 +428,29 @@ function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () =
         ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
         : `${(file.size / 1024).toFixed(0)} KB`;
       
-      // For now, we'll still show an alert since we don't have a resources table yet
-      // In production, this would save to the database
-      alert(`File uploaded successfully!
-Title: ${title}
-Category: ${finalCategory}
-Icon: ${icon}
-File: ${file.name}
-Size: ${fileSize}
-Upload Path: ${filePath}
-Public URL: ${urlData.publicUrl}
+      // Save resource to database
+      const { error: dbError } = await supabase
+        .from('resources')
+        .insert({
+          title,
+          description,
+          category: finalCategory,
+          icon,
+          file_url: urlData.publicUrl,
+          file_path: filePath,
+          file_size: fileSize,
+          file_type: file.type,
+          is_global: true, // For now, make all resources global
+          download_count: 0
+        })
+        .select()
+        .single();
 
-Note: This would now be saved to the database in production.`);
+      if (dbError) {
+        throw new Error(`Database error: ${dbError.message}`);
+      }
+
+      alert(`Resource "${title}" has been added successfully!`);
       
       onAdd();
     } catch (error: any) {
