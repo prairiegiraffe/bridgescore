@@ -25,7 +25,13 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  let action: string;
+  
   try {
+    console.log(`Edge function called with method: ${req.method}`);
+    console.log(`Content-Type: ${req.headers.get('content-type')}`);
+    console.log(`Authorization header present: ${!!req.headers.get('Authorization')}`);
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -45,17 +51,21 @@ serve(async (req) => {
       throw new Error('Not authenticated')
     }
 
+    console.log(`User authenticated: ${user.email}`);
+
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
 
     if (!openaiApiKey) {
       throw new Error('OpenAI API key not configured')
     }
 
-    let action: string;
+    console.log(`OpenAI API key configured: ${!!openaiApiKey}`);
+
     let payload: any = {};
 
     // Handle both JSON and multipart form data
     const contentType = req.headers.get('content-type') || '';
+    console.log(`Processing request with content-type: ${contentType}`);
     
     if (contentType.includes('multipart/form-data')) {
       // Handle form data for audio uploads
@@ -898,10 +908,25 @@ async function transcribeAudio(
     const rawResponse = await response.text();
     console.log(`Whisper API raw response: "${rawResponse}"`);
     console.log(`Response length: ${rawResponse.length}`);
+    console.log(`Response first 10 chars: "${rawResponse.slice(0, 10)}"`);
+    console.log(`Response is JSON-like:`, rawResponse.startsWith('{') || rawResponse.startsWith('['));
 
     if (!response.ok) {
       console.error(`Whisper API error: ${rawResponse}`);
-      throw new Error(`Transcription API error (${response.status}): ${rawResponse}`);
+      
+      // Try to parse error response as JSON if it looks like JSON
+      if (rawResponse.startsWith('{') || rawResponse.startsWith('[')) {
+        try {
+          const errorData = JSON.parse(rawResponse);
+          const errorMessage = errorData.error?.message || errorData.message || rawResponse;
+          throw new Error(`Transcription API error (${response.status}): ${errorMessage}`);
+        } catch (jsonParseError) {
+          console.error('Failed to parse error response as JSON:', jsonParseError);
+          throw new Error(`Transcription API error (${response.status}): ${rawResponse}`);
+        }
+      } else {
+        throw new Error(`Transcription API error (${response.status}): ${rawResponse}`);
+      }
     }
 
     // For text format, the response is just the transcribed text
