@@ -95,8 +95,7 @@ export default function BridgeStepsEditor({ client, onClose, onUpdate, isOrganiz
           logo_url: logoUrl || null,
           primary_color: primaryColor,
           secondary_color: secondaryColor,
-          bridge_steps: steps,
-          updated_at: new Date().toISOString()
+          bridge_steps: steps
         })
         .eq('id', client.id);
 
@@ -106,7 +105,8 @@ export default function BridgeStepsEditor({ client, onClose, onUpdate, isOrganiz
       onUpdate();
     } catch (err) {
       console.error(`Error updating ${isOrganization ? 'organization' : 'client'}:`, err);
-      alert(`Failed to update ${isOrganization ? 'organization' : 'client'}`);
+      console.error('Full error details:', JSON.stringify(err, null, 2));
+      alert(`Failed to update ${isOrganization ? 'organization' : 'client'}: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setSaving(false);
     }
