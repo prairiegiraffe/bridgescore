@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OrgProvider } from './contexts/OrgContext';
 import Sidebar from './components/Sidebar';
 import AuthGate from './components/AuthGate';
@@ -13,9 +13,11 @@ import Resources from './pages/Resources';
 
 function AppContent() {
   const location = useLocation();
+  const { user, loading } = useAuth();
   const isAuthPage = location.pathname === '/login';
   const isDemoPage = location.pathname.startsWith('/demo');
-  const showSidebar = !isAuthPage && !isDemoPage;
+  // Only show sidebar if user is authenticated AND not on auth/demo pages
+  const showSidebar = !isAuthPage && !isDemoPage && user && !loading;
 
   return (
     <div className="min-h-screen bg-gray-50">
