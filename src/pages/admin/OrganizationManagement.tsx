@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useBranding } from '../../contexts/BrandingContext';
 import { supabase } from '../../lib/supabase';
 import BridgeStepsEditor from '../../components/BridgeStepsEditor';
 
@@ -30,6 +31,7 @@ interface User {
 export default function OrganizationManagement() {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
+  const { refreshBranding } = useBranding();
   
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedOrgUsers, setSelectedOrgUsers] = useState<User[]>([]);
@@ -305,6 +307,7 @@ export default function OrganizationManagement() {
       
       alert('Global branding updated successfully!');
       await fetchGlobalBranding();
+      await refreshBranding(); // Refresh branding context
       setShowBrandingModal(false);
     } catch (err) {
       console.error('Error updating global branding:', err);

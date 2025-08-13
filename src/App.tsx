@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OrgProvider } from './contexts/OrgContext';
+import { BrandingProvider } from './contexts/BrandingContext';
 import Sidebar from './components/Sidebar';
 import AuthGate from './components/AuthGate';
 import Login from './pages/Login';
@@ -84,9 +85,11 @@ function App() {
   return (
     <AuthProvider>
       <OrgProvider>
-        <BrowserRouter>
-          <AppContent />
-        </BrowserRouter>
+        <BrandingProvider>
+          <BrowserRouter>
+            <AppContent />
+          </BrowserRouter>
+        </BrandingProvider>
       </OrgProvider>
     </AuthProvider>
   );

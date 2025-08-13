@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
+import { useBranding } from '../contexts/BrandingContext';
 import { FLAGS } from '../lib/flags';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
@@ -8,6 +9,7 @@ import { supabase } from '../lib/supabase';
 export default function Sidebar() {
   const { user, signOut } = useAuth();
   const { currentOrg, setCurrentOrg, organizations } = useOrg();
+  const { branding } = useBranding();
   const location = useLocation();
   const navigate = useNavigate();
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -113,7 +115,24 @@ export default function Sidebar() {
         <div className="flex flex-col h-full">
           {/* Logo/Brand */}
           <div className="p-6 border-b border-gray-200">
-            <h1 className="text-2xl font-bold text-blue-600">BridgeScore</h1>
+            <div className="flex items-center space-x-3">
+              {branding.logo_url ? (
+                <img 
+                  src={branding.logo_url} 
+                  alt={branding.app_name}
+                  className="h-8 w-auto"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              ) : null}
+              <h1 
+                className="text-2xl font-bold"
+                style={{ color: branding.primary_color }}
+              >
+                {branding.app_name}
+              </h1>
+            </div>
             {currentOrg && (
               <div className="mt-3">
                 <button
