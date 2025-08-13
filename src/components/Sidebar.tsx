@@ -115,19 +115,19 @@ export default function Sidebar() {
         <div className="flex flex-col h-full">
           {/* Logo/Brand */}
           <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-col items-center space-y-2">
               {branding.logo_url ? (
                 <img 
                   src={branding.logo_url} 
                   alt={branding.app_name}
-                  className="h-8 w-auto"
+                  className="h-12 w-auto"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
                   }}
                 />
               ) : null}
               <h1 
-                className="text-2xl font-bold"
+                className="text-2xl font-bold text-center"
                 style={{ color: branding.primary_color }}
               >
                 {branding.app_name}
