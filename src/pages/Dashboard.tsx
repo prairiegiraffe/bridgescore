@@ -270,7 +270,7 @@ export default function Dashboard() {
       formData.append('action', 'transcribe_audio');
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-operations`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/audio-test`,
         {
           method: 'POST',
           headers: {
