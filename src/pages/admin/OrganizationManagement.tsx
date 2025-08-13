@@ -605,6 +605,7 @@ export default function OrganizationManagement() {
             setEditingOrg(null);
             await fetchOrganizations();
           }}
+          isOrganization={true}
         />
       )}
     </div>

@@ -25,9 +25,10 @@ interface Props {
   client: Client;
   onClose: () => void;
   onUpdate: () => void;
+  isOrganization?: boolean;
 }
 
-export default function BridgeStepsEditor({ client, onClose, onUpdate }: Props) {
+export default function BridgeStepsEditor({ client, onClose, onUpdate, isOrganization = false }: Props) {
   const [steps, setSteps] = useState<BridgeStep[]>([]);
   const [clientName, setClientName] = useState(client.name);
   const [clientDomain, setClientDomain] = useState(client.domain || '');
@@ -85,8 +86,9 @@ export default function BridgeStepsEditor({ client, onClose, onUpdate }: Props) 
   const saveChanges = async () => {
     setSaving(true);
     try {
+      const tableName = isOrganization ? 'organizations' : 'clients';
       const { error } = await (supabase as any)
-        .from('clients')
+        .from(tableName)
         .update({
           name: clientName,
           domain: clientDomain || null,
@@ -100,11 +102,11 @@ export default function BridgeStepsEditor({ client, onClose, onUpdate }: Props) 
 
       if (error) throw error;
       
-      alert('Client updated successfully!');
+      alert(`${isOrganization ? 'Organization' : 'Client'} updated successfully!`);
       onUpdate();
     } catch (err) {
-      console.error('Error updating client:', err);
-      alert('Failed to update client');
+      console.error(`Error updating ${isOrganization ? 'organization' : 'client'}:`, err);
+      alert(`Failed to update ${isOrganization ? 'organization' : 'client'}`);
     } finally {
       setSaving(false);
     }
