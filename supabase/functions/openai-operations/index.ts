@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+// import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+// import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,7 +20,7 @@ interface OpenAIVectorStore {
   name: string;
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Always log something first
   console.log('=== EDGE FUNCTION CALLED ===');
   console.log(`Method: ${req.method}`);
@@ -47,9 +47,10 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           test: 'success', 
-          message: 'Edge function is working',
+          message: 'Edge function is working - minimal version',
           contentType: contentType,
-          hasAuth: !!req.headers.get('Authorization')
+          hasAuth: !!req.headers.get('Authorization'),
+          url: req.url
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -58,38 +59,18 @@ serve(async (req) => {
       );
     }
     
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    // For non-multipart requests, just return a simple response
+    return new Response(
+      JSON.stringify({ 
+        test: 'success', 
+        message: 'Non-multipart request received',
+        contentType: contentType
+      }),
       {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
       }
-    )
-
-    // Get the user
-    const {
-      data: { user },
-    } = await supabaseClient.auth.getUser()
-
-    if (!user) {
-      throw new Error('Not authenticated')
-    }
-
-    console.log(`User authenticated: ${user.email}`);
-
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
-
-    if (!openaiApiKey) {
-      throw new Error('OpenAI API key not configured')
-    }
-
-    console.log(`OpenAI API key configured: ${!!openaiApiKey}`);
-
-    let payload: any = {};
-
-    console.log(`Processing request with content-type: ${contentType}`);
+    );
     
     if (contentType.includes('multipart/form-data')) {
       // Handle form data for audio uploads
