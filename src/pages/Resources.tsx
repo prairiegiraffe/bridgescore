@@ -429,27 +429,13 @@ function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () =
         : `${(file.size / 1024).toFixed(0)} KB`;
       
       // Save resource to database
-      console.log('Saving resource with data:', {
-        title,
-        description,
-        category: finalCategory,
-        icon: icon,
-        icon_length: icon.length,
-        file_url: urlData.publicUrl,
-        file_path: filePath,
-        file_size: fileSize,
-        file_type: file.type,
-        is_global: true,
-        download_count: 0
-      });
-      
       const { error: dbError } = await supabase
         .from('resources')
         .insert({
           title,
           description,
           category: finalCategory,
-          icon: icon.substring(0, 10), // Temporarily limit to 10 chars to avoid error
+          icon,
           file_url: urlData.publicUrl,
           file_path: filePath,
           file_size: fileSize,
