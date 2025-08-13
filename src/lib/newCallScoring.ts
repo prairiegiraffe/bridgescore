@@ -180,15 +180,40 @@ export async function rescoreCall(callId: string) {
     if (fetchError) throw fetchError;
     if (!call) throw new Error('Call not found');
 
+    // If call doesn't have organization_id, try to get it from user's membership
+    let organizationId = call.organization_id;
+    
+    if (!organizationId && call.user_id) {
+      const { data: membership, error: membershipError } = await (supabase as any)
+        .from('memberships')
+        .select('org_id')
+        .eq('user_id', call.user_id)
+        .single();
+      
+      if (!membershipError && membership) {
+        organizationId = membership.org_id;
+        
+        // Update the call with the organization_id for future use
+        await (supabase as any)
+          .from('calls')
+          .update({ organization_id: organizationId })
+          .eq('id', callId);
+      }
+    }
+
+    if (!organizationId) {
+      throw new Error('Could not determine organization for this call');
+    }
+
     // Get the organization for this call
     const { data: org, error: orgError } = await (supabase as any)
       .from('organizations')
       .select('*')
-      .eq('id', call.organization_id)
+      .eq('id', organizationId)
       .single();
 
     if (orgError || !org) {
-      throw new Error('Organization not found for this call');
+      throw new Error(`Organization not found: ${orgError?.message || 'Unknown error'}`);
     }
 
     // Check if organization has OpenAI configured

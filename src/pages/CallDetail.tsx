@@ -314,7 +314,8 @@ export default function CallDetail() {
       alert('Call rescored successfully with OpenAI!');
     } catch (err) {
       console.error('Error rescoring call:', err);
-      alert('Failed to rescore call. Please check your OpenAI configuration and try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      alert(`Failed to rescore call: ${errorMessage}`);
     } finally {
       setRescoring(false);
     }
