@@ -604,8 +604,8 @@ export default function CallDetail() {
             <AIReasoningTab rawResponse={call.openai_raw_response} />
           )}
           
-          {activeTab === 'debug' && isSuperAdmin && call.openai_raw_response && (
-            <DebugTab rawResponse={call.openai_raw_response} />
+          {activeTab === 'debug' && isSuperAdmin && (
+            <DebugTab rawResponse={call.openai_raw_response} call={call} />
           )}
         </div>
       </div>
@@ -916,13 +916,25 @@ function AICoachingTab({ coaching }: AICoachingTabProps) {
 // Debug Tab Component (SuperAdmin only)
 interface DebugTabProps {
   rawResponse: any;
+  call: CallData;
 }
 
-function DebugTab({ rawResponse }: DebugTabProps) {
+function DebugTab({ rawResponse, call }: DebugTabProps) {
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     alert(`${label} copied to clipboard\!`);
   };
+
+  // Debug what we actually have
+  console.log('Debug Tab - rawResponse:', rawResponse);
+  console.log('Debug Tab - call.openai_raw_response:', call.openai_raw_response);
+  console.log('Debug Tab - call.score_breakdown:', call.score_breakdown);
+  console.log('Debug Tab - call.coaching:', call.coaching);
+
+  // Try different sources for the data
+  const debugData = rawResponse || call.openai_raw_response || {};
+  const stepScores = debugData.stepScores || call.score_breakdown || [];
+  const coaching = debugData.coaching || call.coaching || {};
 
   return (
     <div>
@@ -934,12 +946,29 @@ function DebugTab({ rawResponse }: DebugTabProps) {
       </h3>
 
       <div className="space-y-6">
+        {/* Debug Data Source */}
+        <div>
+          <h4 className="text-md font-semibold text-purple-800 mb-4">Data Source Debug</h4>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-xs">
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <strong>rawResponse:</strong> {rawResponse ? 'Present' : 'Missing'}
+              </div>
+              <div>
+                <strong>call.openai_raw_response:</strong> {call.openai_raw_response ? 'Present' : 'Missing'}
+              </div>
+              <div>
+                <strong>Using:</strong> {debugData === rawResponse ? 'rawResponse' : debugData === call.openai_raw_response ? 'call.openai_raw_response' : 'fallback'}
+              </div>
+            </div>
+          </div>
+        </div>
         {/* Step Scores Debug */}
-        {rawResponse.stepScores && Array.isArray(rawResponse.stepScores) && (
+        {stepScores && Array.isArray(stepScores) && stepScores.length > 0 && (
           <div>
             <h4 className="text-md font-semibold text-purple-800 mb-4">Step Scoring Threads</h4>
             <div className="space-y-3">
-              {rawResponse.stepScores.map((step: any, index: number) => (
+              {stepScores.map((step: any, index: number) => (
                 <div key={index} className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
                     <h5 className="font-medium text-purple-900">{step.stepName}</h5>
@@ -952,7 +981,7 @@ function DebugTab({ rawResponse }: DebugTabProps) {
                     </span>
                   </div>
                   
-                  {step.openaiThreadId && (
+                  {(step.openaiThreadId || step.threadId) && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
                       <div>
                         <label className="block text-xs font-medium text-purple-700 mb-1">
@@ -960,10 +989,10 @@ function DebugTab({ rawResponse }: DebugTabProps) {
                         </label>
                         <div className="flex items-center space-x-2">
                           <code className="flex-1 bg-white px-2 py-1 rounded border text-xs font-mono">
-                            {step.openaiThreadId}
+                            {step.openaiThreadId || step.threadId}
                           </code>
                           <button
-                            onClick={() => copyToClipboard(step.openaiThreadId, "Thread ID")}
+                            onClick={() => copyToClipboard(step.openaiThreadId || step.threadId, "Thread ID")}
                             className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
                           >
                             Copy
@@ -971,17 +1000,17 @@ function DebugTab({ rawResponse }: DebugTabProps) {
                         </div>
                       </div>
                       
-                      {step.openaiRunId && (
+                      {(step.openaiRunId || step.runId) && (
                         <div>
                           <label className="block text-xs font-medium text-purple-700 mb-1">
                             OpenAI Run ID:
                           </label>
                           <div className="flex items-center space-x-2">
                             <code className="flex-1 bg-white px-2 py-1 rounded border text-xs font-mono">
-                              {step.openaiRunId}
+                              {step.openaiRunId || step.runId}
                             </code>
                             <button
-                              onClick={() => copyToClipboard(step.openaiRunId, "Run ID")}
+                              onClick={() => copyToClipboard(step.openaiRunId || step.runId, "Run ID")}
                               className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
                             >
                               Copy
@@ -998,22 +1027,22 @@ function DebugTab({ rawResponse }: DebugTabProps) {
         )}
 
         {/* Coaching Debug */}
-        {rawResponse.coaching && (rawResponse.coaching.coachingThreadId || rawResponse.coaching.coachingRunId) && (
+        {coaching && (coaching.coachingThreadId || coaching.coachingRunId) && (
           <div>
             <h4 className="text-md font-semibold text-purple-800 mb-4">Coaching Generation Thread</h4>
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {rawResponse.coaching.coachingThreadId && (
+                {coaching.coachingThreadId && (
                   <div>
                     <label className="block text-xs font-medium text-purple-700 mb-1">
                       Coaching Thread ID:
                     </label>
                     <div className="flex items-center space-x-2">
                       <code className="flex-1 bg-white px-2 py-1 rounded border text-xs font-mono">
-                        {rawResponse.coaching.coachingThreadId}
+                        {coaching.coachingThreadId}
                       </code>
                       <button
-                        onClick={() => copyToClipboard(rawResponse.coaching.coachingThreadId, "Coaching Thread ID")}
+                        onClick={() => copyToClipboard(coaching.coachingThreadId, "Coaching Thread ID")}
                         className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
                       >
                         Copy
@@ -1022,17 +1051,17 @@ function DebugTab({ rawResponse }: DebugTabProps) {
                   </div>
                 )}
                 
-                {rawResponse.coaching.coachingRunId && (
+                {coaching.coachingRunId && (
                   <div>
                     <label className="block text-xs font-medium text-purple-700 mb-1">
                       Coaching Run ID:
                     </label>
                     <div className="flex items-center space-x-2">
                       <code className="flex-1 bg-white px-2 py-1 rounded border text-xs font-mono">
-                        {rawResponse.coaching.coachingRunId}
+                        {coaching.coachingRunId}
                       </code>
                       <button
-                        onClick={() => copyToClipboard(rawResponse.coaching.coachingRunId, "Coaching Run ID")}
+                        onClick={() => copyToClipboard(coaching.coachingRunId, "Coaching Run ID")}
                         className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
                       >
                         Copy
@@ -1053,22 +1082,37 @@ function DebugTab({ rawResponse }: DebugTabProps) {
               <div>
                 <label className="block font-medium text-purple-700 mb-1">Assistant ID:</label>
                 <code className="bg-white px-2 py-1 rounded border block">
-                  {rawResponse.assistantId || "Not available"}
+                  {debugData.assistantId || "Not available"}
                 </code>
               </div>
               <div>
                 <label className="block font-medium text-purple-700 mb-1">Scored At:</label>
                 <code className="bg-white px-2 py-1 rounded border block">
-                  {rawResponse.scoredAt ? new Date(rawResponse.scoredAt).toLocaleString() : "Not available"}
+                  {debugData.scoredAt ? new Date(debugData.scoredAt).toLocaleString() : call.created_at ? new Date(call.created_at).toLocaleString() : "Not available"}
                 </code>
               </div>
               <div>
                 <label className="block font-medium text-purple-700 mb-1">Total Score:</label>
                 <code className="bg-white px-2 py-1 rounded border block">
-                  {rawResponse.total || "Not available"}
+                  {debugData.total || call.score_total || "Not available"}
                 </code>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Raw Data Dump for Debugging */}
+        <div>
+          <h4 className="text-md font-semibold text-purple-800 mb-4">Raw Data Structure</h4>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <details className="text-xs">
+              <summary className="cursor-pointer font-medium text-gray-700 mb-2">
+                Expand to see raw OpenAI response structure
+              </summary>
+              <pre className="bg-white p-3 rounded border overflow-auto text-xs font-mono max-h-96">
+                {JSON.stringify(debugData, null, 2)}
+              </pre>
+            </details>
           </div>
         </div>
 
