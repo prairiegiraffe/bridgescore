@@ -1,13 +1,18 @@
 name: Deploy Supabase Migrations
 
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'supabase/migrations/**'
-      - 'supabase/seed/**'
-  workflow_dispatch: # Allow manual trigger
+# DISABLED: Migrations are applied manually via Supabase SQL Editor
+# To re-enable, uncomment the 'on:' section below
+
+# on:
+#   push:
+#     branches:
+#       - main
+#     paths:
+#       - 'supabase/migrations/**'
+#       - 'supabase/seed/**'
+#   workflow_dispatch: # Allow manual trigger
+
+on: [] # Disabled
 
 jobs:
   deploy:
