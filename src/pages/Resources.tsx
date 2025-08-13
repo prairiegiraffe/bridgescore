@@ -318,11 +318,34 @@ function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () =
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [customCategory, setCustomCategory] = useState('');
   const [icon, setIcon] = useState('📄');
   const [saving, setSaving] = useState(false);
 
+  // Predefined categories based on existing resources
+  const predefinedCategories = [
+    'Framework',
+    'Quick Reference', 
+    'Scoring',
+    'Scripts',
+    'Templates',
+    'Worksheets',
+    'Training',
+    'Best Practices',
+    'Case Studies',
+    'Checklists'
+  ];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Use custom category if "custom" is selected, otherwise use selected category
+    const finalCategory = category === 'custom' ? customCategory : category;
+    
+    if (!finalCategory.trim()) {
+      alert('Please select or enter a category');
+      return;
+    }
     
     // This would implement the actual resource creation logic
     setSaving(true);
@@ -330,7 +353,7 @@ function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () =
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    alert('Resource would be added to the database here');
+    alert(`Resource would be added to the database:\nTitle: ${title}\nCategory: ${finalCategory}\nIcon: ${icon}`);
     setSaving(false);
     onAdd();
   };
@@ -369,32 +392,62 @@ function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () =
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Category *
+            </label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              <option value="">Select a category...</option>
+              {predefinedCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+              <option value="custom">+ Add New Category</option>
+            </select>
+          </div>
+
+          {category === 'custom' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category
+                Custom Category *
               </label>
               <input
                 type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="e.g., Templates"
+                placeholder="Enter new category name..."
+                autoFocus
               />
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Icon
-              </label>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Icon
+            </label>
+            <div className="grid grid-cols-2 gap-3">
               <input
                 type="text"
                 value={icon}
                 onChange={(e) => setIcon(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="px-3 py-2 border border-gray-300 rounded-md"
                 placeholder="📄"
               />
+              <div className="flex items-center justify-center border border-gray-300 rounded-md bg-gray-50">
+                <span className="text-2xl">{icon || '📄'}</span>
+              </div>
             </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Common icons: 📄 📊 🎯 🛡️ 📝 🎓 📚 ⚡ 🔧 💡
+            </p>
           </div>
 
           <div className="flex justify-end space-x-3 pt-4">
