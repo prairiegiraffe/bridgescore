@@ -5,7 +5,6 @@ import { usePivots } from '../hooks/usePivots';
 import { useOrg } from '../contexts/OrgContext';
 import { useAuth } from '../contexts/AuthContext';
 import { FLAGS } from '../lib/flags';
-import CoachingTaskModal from '../components/CoachingTaskModal';
 import { getAssistantVersions, type AssistantVersion } from '../lib/assistants';
 import { rescoreCall } from '../lib/newCallScoring';
 
@@ -47,7 +46,6 @@ export default function CallDetail() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'scorecard' | 'coaching' | 'transcript' | 'ai-reasoning' | 'debug'>('scorecard');
   const [memberRole, setMemberRole] = useState<string | null>(null);
-  const [showCoachingModal, setShowCoachingModal] = useState(false);
   const [showRescoreMenu, setShowRescoreMenu] = useState(false);
   const [assistantVersions, setAssistantVersions] = useState<AssistantVersion[]>([]);
   const [rescoring, setRescoring] = useState(false);
@@ -251,54 +249,6 @@ export default function CallDetail() {
 
   const { strengths, improvements } = getCoachingAnalysis();
 
-  // Team action functions
-  const handleSendToReview = async () => {
-    if (!call || !currentOrg || !user || memberRole !== 'owner' && memberRole !== 'admin') return;
-
-    try {
-      const { error } = await (supabase as any)
-        .from('review_queue')
-        .insert({
-          org_id: currentOrg.id,
-          call_id: call.id,
-          status: 'new'
-        });
-
-      if (error) throw error;
-      alert('Call sent to review queue successfully!');
-    } catch (err: any) {
-      if (err.code === '23505') { // Unique constraint violation
-        alert('This call is already in the review queue.');
-      } else {
-        console.error('Error sending to review:', err);
-        alert('Review queue not available yet. Please run database migrations.');
-      }
-    }
-  };
-
-  const handleCreateCoachingTask = async (stepKey: string, dueDate: string) => {
-    if (!call || !currentOrg || !user || memberRole !== 'owner' && memberRole !== 'admin') return;
-
-    try {
-      const { error } = await (supabase as any)
-        .from('coaching_tasks')
-        .insert({
-          org_id: currentOrg.id,
-          rep_user_id: call.user_id,
-          call_id: call.id,
-          step_key: stepKey,
-          status: 'todo',
-          due_date: dueDate || null
-        });
-
-      if (error) throw error;
-      alert('Coaching task created successfully!');
-      setShowCoachingModal(false);
-    } catch (err) {
-      console.error('Error creating coaching task:', err);
-      alert('Coaching tasks not available yet. Please run database migrations.');
-    }
-  };
 
   const handleDirectRescore = async () => {
     if (!call) return;
@@ -405,22 +355,6 @@ export default function CallDetail() {
             {/* Admin Actions */}
             {(memberRole === 'owner' || memberRole === 'admin') && (
               <div className="flex space-x-2">
-                {FLAGS.TEAM_BOARDS && (
-                  <>
-                    <button
-                      onClick={handleSendToReview}
-                      className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
-                    >
-                      Send to Review
-                    </button>
-                    <button
-                      onClick={() => setShowCoachingModal(true)}
-                      className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
-                    >
-                      Create Task
-                    </button>
-                  </>
-                )}
                 {(FLAGS.RESCORE_WITH_VERSION || true) && (
                   <button
                     onClick={handleDirectRescore}
@@ -610,14 +544,6 @@ export default function CallDetail() {
         </div>
       </div>
 
-      {/* Coaching Task Modal */}
-      {showCoachingModal && (
-        <CoachingTaskModal
-          onClose={() => setShowCoachingModal(false)}
-          onCreate={handleCreateCoachingTask}
-          stepLabels={stepLabels}
-        />
-      )}
     </div>
   );
 }
