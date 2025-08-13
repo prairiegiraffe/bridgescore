@@ -35,6 +35,13 @@ interface CallData {
   openai_thread_id?: string;
   openai_run_id?: string;
   openai_raw_response?: any;
+  manually_adjusted?: boolean;
+  manually_adjusted_by?: string;
+  manually_adjusted_at?: string;
+  flagged_for_review?: boolean;
+  flagged_by?: string;
+  flagged_at?: string;
+  flag_reason?: string;
 }
 
 export default function CallDetail() {
@@ -50,6 +57,11 @@ export default function CallDetail() {
   const [assistantVersions, setAssistantVersions] = useState<AssistantVersion[]>([]);
   const [rescoring, setRescoring] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [editingScores, setEditingScores] = useState(false);
+  const [adjustedScores, setAdjustedScores] = useState<any[]>([]);
+  const [savingAdjustments, setSavingAdjustments] = useState(false);
+  const [showFlagModal, setShowFlagModal] = useState(false);
+  const [flagReason, setFlagReason] = useState('');
 
   useEffect(() => {
     fetchCall();
@@ -283,6 +295,114 @@ export default function CallDetail() {
     }
   };
 
+  const startEditingScores = () => {
+    const currentScores = renderScoreBreakdown();
+    setAdjustedScores(currentScores.map(item => ({
+      ...item.step,
+      originalCredit: item.step.credit,
+      originalNotes: item.step.notes
+    })));
+    setEditingScores(true);
+  };
+
+  const cancelEditingScores = () => {
+    setEditingScores(false);
+    setAdjustedScores([]);
+  };
+
+  const updateStepScore = (stepIndex: number, field: string, value: any) => {
+    setAdjustedScores(prev => prev.map((step, index) => 
+      index === stepIndex ? { ...step, [field]: value } : step
+    ));
+  };
+
+  const saveScoreAdjustments = async () => {
+    if (!call || !user) return;
+    
+    setSavingAdjustments(true);
+    try {
+      // Calculate new total
+      const newTotal = Math.round(
+        adjustedScores.reduce((sum, step) => sum + (step.weight * step.credit), 0)
+      );
+
+      // Update the call with adjusted scores
+      const { error } = await supabase
+        .from('calls')
+        .update({
+          score_total: newTotal,
+          score_breakdown: adjustedScores,
+          manually_adjusted: true,
+          manually_adjusted_by: user.id,
+          manually_adjusted_at: new Date().toISOString()
+        })
+        .eq('id', call.id);
+
+      if (error) throw error;
+
+      // Refresh the call data
+      await fetchCall();
+      setEditingScores(false);
+      setAdjustedScores([]);
+      alert('Score adjustments saved successfully!');
+    } catch (err) {
+      console.error('Error saving score adjustments:', err);
+      alert('Failed to save score adjustments. Please try again.');
+    } finally {
+      setSavingAdjustments(false);
+    }
+  };
+
+  const flagForReview = async () => {
+    if (!call || !user || !flagReason.trim()) return;
+    
+    try {
+      const { error } = await supabase
+        .from('calls')
+        .update({
+          flagged_for_review: true,
+          flagged_by: user.id,
+          flagged_at: new Date().toISOString(),
+          flag_reason: flagReason.trim()
+        })
+        .eq('id', call.id);
+
+      if (error) throw error;
+
+      await fetchCall();
+      setShowFlagModal(false);
+      setFlagReason('');
+      alert('Call flagged for review successfully!');
+    } catch (err) {
+      console.error('Error flagging call:', err);
+      alert('Failed to flag call for review. Please try again.');
+    }
+  };
+
+  const unflagCall = async () => {
+    if (!call) return;
+    
+    try {
+      const { error } = await supabase
+        .from('calls')
+        .update({
+          flagged_for_review: false,
+          flagged_by: null,
+          flagged_at: null,
+          flag_reason: null
+        })
+        .eq('id', call.id);
+
+      if (error) throw error;
+
+      await fetchCall();
+      alert('Call unflagged successfully!');
+    } catch (err) {
+      console.error('Error unflagging call:', err);
+      alert('Failed to unflag call. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -332,7 +452,19 @@ export default function CallDetail() {
       {/* Score Summary */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">Overall Score</h2>
+          <div className="flex items-center space-x-3">
+            <h2 className="text-xl font-semibold text-gray-900">Overall Score</h2>
+            {call.manually_adjusted && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                Manually Adjusted
+              </span>
+            )}
+            {call.flagged_for_review && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                🚩 Flagged for Review
+              </span>
+            )}
+          </div>
           <div className="flex items-center space-x-4">
             <div className="text-3xl font-bold text-blue-600">
               {call.score_total}/20
@@ -347,6 +479,53 @@ export default function CallDetail() {
                     disabled={rescoring}
                   >
                     {rescoring ? 'Rescoring...' : 'Re-score'}
+                  </button>
+                )}
+                
+                {/* Manual Score Edit Button */}
+                {!editingScores ? (
+                  <button
+                    onClick={startEditingScores}
+                    className="bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700"
+                    disabled={rescoring}
+                  >
+                    Edit Scores
+                  </button>
+                ) : (
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={saveScoreAdjustments}
+                      className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                      disabled={savingAdjustments}
+                    >
+                      {savingAdjustments ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={cancelEditingScores}
+                      className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700"
+                      disabled={savingAdjustments}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+                
+                {/* Flag for Review Button */}
+                {!call.flagged_for_review ? (
+                  <button
+                    onClick={() => setShowFlagModal(true)}
+                    className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+                    disabled={editingScores}
+                  >
+                    Flag for Review
+                  </button>
+                ) : (
+                  <button
+                    onClick={unflagCall}
+                    className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700"
+                    disabled={editingScores}
+                  >
+                    Unflag
                   </button>
                 )}
                 
@@ -465,34 +644,109 @@ export default function CallDetail() {
                 Bridge Selling Scorecard
               </h3>
               
-              {renderScoreBreakdown().map((stepData, index) => {
-                const { key, step, stepName } = stepData;
-                
-                return (
-                  <div key={key || index} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-gray-900">{stepName}</h4>
-                      <div className="flex items-center space-x-2">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getColorClasses(step.color)}`}
-                        >
-                          {step.credit === 1 ? 'Full' : step.credit === 0.5 ? 'Partial' : 'None'}
-                        </span>
-                        <span className="text-sm font-medium text-gray-600">
-                          {step.credit} × {step.weight} = {step.credit * step.weight}
-                        </span>
+              {!editingScores ? (
+                // Read-only view
+                renderScoreBreakdown().map((stepData, index) => {
+                  const { key, step, stepName } = stepData;
+                  
+                  return (
+                    <div key={key || index} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-gray-900">{stepName}</h4>
+                        <div className="flex items-center space-x-2">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getColorClasses(step.color)}`}
+                          >
+                            {step.credit === 1 ? 'Full' : step.credit === 0.5 ? 'Partial' : 'None'}
+                          </span>
+                          <span className="text-sm font-medium text-gray-600">
+                            {step.credit} × {step.weight} = {step.credit * step.weight}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600">{step.notes}</p>
+                      {step.reasoning && (
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">AI Reasoning</h5>
+                          <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">{step.reasoning}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                // Editing view
+                adjustedScores.map((step, index) => {
+                  const stepName = step.stepName || `Step ${index + 1}`;
+                  
+                  return (
+                    <div key={index} className="border border-orange-200 rounded-lg p-4 bg-orange-50">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-medium text-gray-900">{stepName}</h4>
+                        <div className="flex items-center space-x-4">
+                          <div className="flex flex-col items-end">
+                            <label className="text-xs text-gray-500 mb-1">Score</label>
+                            <select
+                              value={step.credit}
+                              onChange={(e) => {
+                                const credit = parseFloat(e.target.value);
+                                const color = credit === 1 ? 'green' : credit === 0.5 ? 'yellow' : 'red';
+                                updateStepScore(index, 'credit', credit);
+                                updateStepScore(index, 'color', color);
+                              }}
+                              className="border border-gray-300 rounded px-2 py-1 text-sm"
+                            >
+                              <option value={0}>0 (None)</option>
+                              <option value={0.5}>0.5 (Partial)</option>
+                              <option value={1}>1 (Full)</option>
+                            </select>
+                          </div>
+                          <span className="text-sm font-medium text-gray-600">
+                            {step.credit} × {step.weight} = {step.credit * step.weight}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Notes</label>
+                          <textarea
+                            value={step.notes || ''}
+                            onChange={(e) => updateStepScore(index, 'notes', e.target.value)}
+                            className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                            rows={2}
+                            placeholder="Add notes about this step..."
+                          />
+                        </div>
+                        
+                        {step.originalCredit !== step.credit && (
+                          <div className="text-xs text-orange-600 bg-orange-100 p-2 rounded">
+                            Original: {step.originalCredit} → Adjusted: {step.credit}
+                          </div>
+                        )}
+                        
+                        {step.reasoning && (
+                          <div className="mt-3 pt-3 border-t border-gray-200">
+                            <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Original AI Reasoning</h5>
+                            <p className="text-sm text-gray-700 bg-gray-100 p-3 rounded">{step.reasoning}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <p className="text-sm text-gray-600">{step.notes}</p>
-                    {step.reasoning && (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">AI Reasoning</h5>
-                        <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">{step.reasoning}</p>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
+              
+              {/* Manual Adjustment Audit Trail */}
+              {call.manually_adjusted && call.manually_adjusted_at && (
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg border">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Adjustment History</h4>
+                  <p className="text-sm text-gray-600">
+                    Scores were manually adjusted on {formatDate(call.manually_adjusted_at)}
+                    {call.manually_adjusted_by && ` by user ${call.manually_adjusted_by}`}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -528,6 +782,63 @@ export default function CallDetail() {
           )}
         </div>
       </div>
+      
+      {/* Flag for Review Modal */}
+      {showFlagModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Flag Call for Review
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Why should this call be reviewed by an admin?
+              </p>
+              <textarea
+                value={flagReason}
+                onChange={(e) => setFlagReason(e.target.value)}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                rows={4}
+                placeholder="Enter reason for flagging (e.g., 'AI score seems inaccurate', 'Complex situation needs human review', etc.)"
+              />
+              <div className="flex justify-end space-x-3 mt-4">
+                <button
+                  onClick={() => {
+                    setShowFlagModal(false);
+                    setFlagReason('');
+                  }}
+                  className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={flagForReview}
+                  disabled={!flagReason.trim()}
+                  className="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Flag for Review
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Flag Reason Display */}
+      {call.flagged_for_review && call.flag_reason && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-6">
+          <h4 className="text-sm font-medium text-red-900 mb-2">Flagged for Review</h4>
+          <p className="text-sm text-red-800 mb-2">
+            <strong>Reason:</strong> {call.flag_reason}
+          </p>
+          {call.flagged_at && (
+            <p className="text-sm text-red-600">
+              Flagged on {formatDate(call.flagged_at)}
+              {call.flagged_by && ` by user ${call.flagged_by}`}
+            </p>
+          )}
+        </div>
+      )}
 
     </div>
   );
