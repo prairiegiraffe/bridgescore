@@ -115,7 +115,7 @@ export default function Sidebar() {
         <div className="flex flex-col h-full">
           {/* Logo/Brand */}
           <div className="p-6 border-b border-gray-200">
-            <div className="flex flex-col items-center space-y-2">
+            <div className="flex flex-col space-y-2">
               {branding.logo_url ? (
                 <img 
                   src={branding.logo_url} 
@@ -127,7 +127,7 @@ export default function Sidebar() {
                 />
               ) : null}
               <h1 
-                className="text-2xl font-bold text-center"
+                className="text-2xl font-bold"
                 style={{ color: branding.primary_color }}
               >
                 {branding.app_name}
