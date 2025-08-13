@@ -59,31 +59,50 @@ serve(async (req) => {
     
     if (contentType.includes('multipart/form-data')) {
       // Handle form data for audio uploads
-      const formData = await req.formData();
-      action = formData.get('action') as string;
-      
-      if (action === 'transcribe_audio') {
-        const audioFile = formData.get('audio') as File;
-        if (!audioFile) {
-          throw new Error('No audio file provided');
-        }
+      try {
+        const formData = await req.formData();
+        action = formData.get('action') as string;
         
-        // Transcription doesn't require SuperAdmin check - regular users can transcribe
-        const result = await transcribeAudio(audioFile, openaiApiKey);
-        return new Response(
-          JSON.stringify(result),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200,
-          },
-        );
+        if (action === 'transcribe_audio') {
+          const audioFile = formData.get('audio') as File;
+          if (!audioFile) {
+            throw new Error('No audio file provided');
+          }
+          
+          console.log(`Processing transcription request for file: ${audioFile.name}`);
+          
+          // Transcription doesn't require SuperAdmin check - regular users can transcribe
+          try {
+            const result = await transcribeAudio(audioFile, openaiApiKey);
+            console.log('Transcription completed successfully');
+            
+            return new Response(
+              JSON.stringify(result),
+              {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 200,
+              },
+            );
+          } catch (transcriptionError) {
+            console.error('Transcription failed:', transcriptionError);
+            throw new Error(`Transcription failed: ${transcriptionError.message}`);
+          }
+        }
+      } catch (formDataError) {
+        console.error('Error processing form data:', formDataError);
+        throw new Error(`Form data processing failed: ${formDataError.message}`);
       }
     } else {
       // Handle JSON data
-      const requestData = await req.json();
-      action = requestData.action;
-      payload = { ...requestData };
-      delete payload.action;
+      try {
+        const requestData = await req.json();
+        action = requestData.action;
+        payload = { ...requestData };
+        delete payload.action;
+      } catch (jsonError) {
+        console.error('Error parsing JSON request:', jsonError);
+        throw new Error(`Invalid JSON in request: ${jsonError.message}`);
+      }
     }
 
     // For non-transcription actions, check if user is SuperAdmin
@@ -148,8 +167,18 @@ serve(async (req) => {
     )
 
   } catch (error) {
+    console.error('Edge function error:', error);
+    console.error('Error stack:', error.stack);
+    
+    // Provide more specific error information
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: errorMessage,
+        timestamp: new Date().toISOString(),
+        action: action || 'unknown'
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
