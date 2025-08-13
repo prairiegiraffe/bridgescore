@@ -67,6 +67,9 @@ export default function Dashboard() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveViewName, setSaveViewName] = useState('');
   
+  // Modal state
+  const [showScoreModal, setShowScoreModal] = useState(false);
+  
   // Stats state
   const [userStats, setUserStats] = useState({
     averageScore: 0,
@@ -608,6 +611,13 @@ export default function Dashboard() {
 
       if (insertError) throw insertError;
 
+      // Close modal and reset form
+      setShowScoreModal(false);
+      setTitle('');
+      setTranscript('');
+      setUploadMode('text');
+      setAudioFile(null);
+      
       // Navigate to call detail page
       navigate(`/calls/${data.id}`);
       
@@ -639,13 +649,138 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Dashboard</h1>
-      
-      {/* Create New Call Form */}
-      <div className="bg-white shadow rounded-lg p-6 mb-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Score a New Call</h2>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Header with Welcome and Score Button */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Welcome back{user?.email ? `, ${user.email.split('@')[0]}` : ''}!
+          </h1>
+          <p className="text-gray-600 mt-1">Here's your sales performance overview</p>
+        </div>
+        <button
+          onClick={() => setShowScoreModal(true)}
+          className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+        >
+          Score New Call
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        {/* Average Score (Last 30 Days) */}
+        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+          <div className="flex items-center">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600">Average Score (Last 30 Days)</p>
+              <div className="flex items-baseline">
+                <p className="text-2xl font-semibold text-gray-900">
+                  {userStats.last30DaysAvg || 0}
+                </p>
+                <p className="ml-2 text-sm text-gray-500">/20</p>
+              </div>
+            </div>
+            <div className="flex-shrink-0">
+              <svg className="h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Total Calls */}
+        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+          <div className="flex items-center">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600">Calls Analyzed</p>
+              <div className="flex items-baseline">
+                <p className="text-2xl font-semibold text-gray-900">
+                  {userStats.totalCalls}
+                </p>
+              </div>
+            </div>
+            <div className="flex-shrink-0">
+              <svg className="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Close Rate (16+ Scores) */}
+        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
+          <div className="flex items-center">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600">Close Rate (16+ Scores)</p>
+              <div className="flex items-baseline">
+                <p className="text-2xl font-semibold text-gray-900">
+                  {userStats.closeRate}%
+                </p>
+              </div>
+            </div>
+            <div className="flex-shrink-0">
+              <svg className="h-8 w-8 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Performance Improvement */}
+        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
+          <div className="flex items-center">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600">Performance Improvement</p>
+              <div className="flex items-baseline">
+                <p className={`text-2xl font-semibold ${userStats.improvement >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {userStats.improvement > 0 ? '+' : ''}{userStats.improvement}%
+                </p>
+              </div>
+            </div>
+            <div className="flex-shrink-0">
+              <svg className={`h-8 w-8 ${userStats.improvement >= 0 ? 'text-purple-400' : 'text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={userStats.improvement >= 0 ? "M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" : "M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"} />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Additional Stats Row */}
+      {userStats.flaggedCalls > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-800">
+                <span className="font-medium">{userStats.flaggedCalls}</span> call{userStats.flaggedCalls !== 1 ? 's' : ''} flagged for review
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Score New Call Modal */}
+      {showScoreModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-0 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">Score a New Call</h2>
+                <button
+                  onClick={() => setShowScoreModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
               Call Title (optional)
@@ -820,107 +955,12 @@ export default function Dashboard() {
             }
           </button>
         </form>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        {/* Average Score (Last 30 Days) */}
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-          <div className="flex items-center">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gray-600">Average Score (Last 30 Days)</p>
-              <div className="flex items-baseline">
-                <p className="text-2xl font-semibold text-gray-900">
-                  {userStats.last30DaysAvg || 0}
-                </p>
-                <p className="ml-2 text-sm text-gray-500">/20</p>
-              </div>
-            </div>
-            <div className="flex-shrink-0">
-              <svg className="h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Total Calls */}
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-          <div className="flex items-center">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gray-600">Calls Analyzed</p>
-              <div className="flex items-baseline">
-                <p className="text-2xl font-semibold text-gray-900">
-                  {userStats.totalCalls}
-                </p>
-              </div>
-            </div>
-            <div className="flex-shrink-0">
-              <svg className="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Close Rate (16+ Scores) */}
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
-          <div className="flex items-center">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gray-600">Close Rate (16+ Scores)</p>
-              <div className="flex items-baseline">
-                <p className="text-2xl font-semibold text-gray-900">
-                  {userStats.closeRate}%
-                </p>
-              </div>
-            </div>
-            <div className="flex-shrink-0">
-              <svg className="h-8 w-8 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Performance Improvement */}
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
-          <div className="flex items-center">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gray-600">Performance Improvement</p>
-              <div className="flex items-baseline">
-                <p className={`text-2xl font-semibold ${userStats.improvement >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {userStats.improvement > 0 ? '+' : ''}{userStats.improvement}%
-                </p>
-              </div>
-            </div>
-            <div className="flex-shrink-0">
-              <svg className={`h-8 w-8 ${userStats.improvement >= 0 ? 'text-purple-400' : 'text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={userStats.improvement >= 0 ? "M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" : "M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"} />
-              </svg>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Additional Stats Row */}
-      {userStats.flaggedCalls > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-800">
-                <span className="font-medium">{userStats.flaggedCalls}</span> call{userStats.flaggedCalls !== 1 ? 's' : ''} flagged for review
-              </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Filter Panel */}
+      {/* Recent Calls Section */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900">All Calls</h2>
