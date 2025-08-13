@@ -28,6 +28,8 @@ export default function Resources() {
   const [loading, setLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingResource, setEditingResource] = useState<Resource | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   useEffect(() => {
@@ -179,6 +181,16 @@ export default function Resources() {
     }
   };
 
+  const handleEdit = (resource: Resource) => {
+    if (!isSuperAdmin) {
+      alert('You do not have permission to edit resources.');
+      return;
+    }
+    
+    setEditingResource(resource);
+    setShowEditModal(true);
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
@@ -283,7 +295,7 @@ export default function Resources() {
               </div>
             </div>
             
-            <div className={`flex gap-2 ${isSuperAdmin ? 'flex' : ''}`}>
+            <div className="flex gap-2">
               <button
                 onClick={() => handleDownload(resource)}
                 className={`bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 ${
@@ -297,15 +309,26 @@ export default function Resources() {
               </button>
               
               {isSuperAdmin && (
-                <button
-                  onClick={() => handleDelete(resource)}
-                  className="bg-red-600 text-white py-2 px-3 rounded-md hover:bg-red-700 transition-colors flex items-center justify-center"
-                  title="Delete Resource"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                <>
+                  <button
+                    onClick={() => handleEdit(resource)}
+                    className="bg-green-600 text-white py-2 px-3 rounded-md hover:bg-green-700 transition-colors flex items-center justify-center"
+                    title="Edit Resource"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => handleDelete(resource)}
+                    className="bg-red-600 text-white py-2 px-3 rounded-md hover:bg-red-700 transition-colors flex items-center justify-center"
+                    title="Delete Resource"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -325,7 +348,7 @@ export default function Resources() {
         </div>
       )}
 
-      {/* Add Resource Modal - Placeholder */}
+      {/* Add Resource Modal */}
       {showAddModal && (
         <AddResourceModal 
           onClose={() => setShowAddModal(false)} 
@@ -335,6 +358,364 @@ export default function Resources() {
           }}
         />
       )}
+
+      {/* Edit Resource Modal */}
+      {showEditModal && editingResource && (
+        <EditResourceModal 
+          resource={editingResource}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditingResource(null);
+          }}
+          onUpdate={() => {
+            setShowEditModal(false);
+            setEditingResource(null);
+            fetchResources();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Edit Resource Modal Component
+function EditResourceModal({ 
+  resource, 
+  onClose, 
+  onUpdate 
+}: { 
+  resource: Resource; 
+  onClose: () => void; 
+  onUpdate: () => void;
+}) {
+  const [title, setTitle] = useState(resource.title);
+  const [description, setDescription] = useState(resource.description);
+  const [category, setCategory] = useState(resource.category);
+  const [customCategory, setCustomCategory] = useState('');
+  const [icon, setIcon] = useState(resource.icon);
+  const [file, setFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [replaceFile, setReplaceFile] = useState(false);
+
+  // Predefined categories based on existing resources
+  const predefinedCategories = [
+    'Framework',
+    'Quick Reference', 
+    'Scoring',
+    'Scripts',
+    'Templates',
+    'Worksheets',
+    'Training',
+    'Best Practices',
+    'Case Studies',
+    'Checklists'
+  ];
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      // Check file type
+      if (!selectedFile.type.includes('pdf') && !selectedFile.type.includes('document')) {
+        alert('Please select a PDF or document file');
+        return;
+      }
+      
+      // Check file size (max 10MB)
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB');
+        return;
+      }
+      
+      setFile(selectedFile);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Use custom category if "custom" is selected, otherwise use selected category
+    const finalCategory = category === 'custom' ? customCategory : category;
+    
+    if (!finalCategory.trim()) {
+      alert('Please select or enter a category');
+      return;
+    }
+    
+    setSaving(true);
+    
+    try {
+      let updateData: any = {
+        title,
+        description,
+        category: finalCategory,
+        icon
+      };
+      
+      // Handle file replacement if a new file was selected
+      if (replaceFile && file) {
+        // Create unique filename
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+        const filePath = `resources/${fileName}`;
+        
+        // Upload new file to Supabase Storage
+        const { error: uploadError } = await supabase.storage
+          .from('resources')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+          
+        if (uploadError) {
+          throw new Error(`Upload failed: ${uploadError.message}`);
+        }
+        
+        // Get public URL for the uploaded file
+        const { data: urlData } = supabase.storage
+          .from('resources')
+          .getPublicUrl(filePath);
+        
+        // Calculate file size in MB/KB
+        const fileSize = file.size > 1024 * 1024 
+          ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+          : `${(file.size / 1024).toFixed(0)} KB`;
+        
+        // Add file information to update data
+        updateData = {
+          ...updateData,
+          file_url: urlData.publicUrl,
+          file_path: filePath,
+          file_size: fileSize,
+          file_type: file.type
+        };
+        
+        // Delete old file from storage if it exists
+        if (resource.file_url && resource.file_url.includes('supabase')) {
+          // Extract file path from the URL or use stored file_path
+          const oldFilePath = resource.file_url.split('/').pop();
+          if (oldFilePath) {
+            await supabase.storage
+              .from('resources')
+              .remove([`resources/${oldFilePath}`]);
+          }
+        }
+      }
+
+      // Update resource in database
+      const { error: dbError } = await supabase
+        .from('resources')
+        .update(updateData)
+        .eq('id', resource.id);
+
+      if (dbError) {
+        throw new Error(`Database error: ${dbError.message}`);
+      }
+
+      alert(`Resource "${title}" has been updated successfully!`);
+      onUpdate();
+    } catch (error: any) {
+      console.error('Update error:', error);
+      alert(`Error updating resource: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <h3 className="text-lg font-semibold mb-4">Edit Resource</h3>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Title *
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              placeholder="e.g., Discovery Questions Playbook"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description *
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              required
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              placeholder="Brief description of what this resource contains..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Category *
+            </label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              <option value="">Select a category...</option>
+              {predefinedCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+              <option value="custom">+ Add New Category</option>
+            </select>
+          </div>
+
+          {category === 'custom' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Custom Category *
+              </label>
+              <input
+                type="text"
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                placeholder="Enter new category name..."
+                autoFocus
+              />
+            </div>
+          )}
+
+          {/* File Replacement Option */}
+          <div className="border-t pt-4">
+            <div className="flex items-center space-x-2 mb-3">
+              <input
+                type="checkbox"
+                id="replace-file"
+                checked={replaceFile}
+                onChange={(e) => setReplaceFile(e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="replace-file" className="text-sm font-medium text-gray-700">
+                Replace current file
+              </label>
+            </div>
+            
+            {replaceFile && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New File *
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="file-upload-edit"
+                    required
+                  />
+                  <label htmlFor="file-upload-edit" className="cursor-pointer">
+                    {file ? (
+                      <div className="flex items-center justify-center space-x-2">
+                        <span className="text-2xl">📄</span>
+                        <div>
+                          <p className="text-sm font-medium text-green-600">{file.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {file.size > 1024 * 1024 
+                              ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+                              : `${(file.size / 1024).toFixed(0)} KB`
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <span className="text-2xl text-gray-400">📁</span>
+                        <p className="text-sm text-gray-600 mt-1">Click to select new file</p>
+                        <p className="text-xs text-gray-400">PDF, DOC, DOCX, PPT, PPTX (Max 10MB)</p>
+                      </div>
+                    )}
+                  </label>
+                  {file && (
+                    <button
+                      type="button"
+                      onClick={() => setFile(null)}
+                      className="mt-2 text-xs text-red-600 hover:text-red-800"
+                    >
+                      Remove file
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {!replaceFile && (
+              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+                <p><strong>Current file:</strong> {resource.file_type} ({resource.file_size})</p>
+                <p>Check "Replace current file" above to upload a new file.</p>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Icon
+            </label>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
+                <input
+                  type="text"
+                  value={icon}
+                  onChange={(e) => setIcon(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  placeholder="📄"
+                />
+              </div>
+              <div className="flex items-center justify-center border border-gray-300 rounded-md bg-gray-50">
+                <span className="text-2xl">{icon}</span>
+              </div>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {['📄', '📊', '🎯', '🛡️', '📝', '🎓', '📚', '⚡', '🔧', '💡'].map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => setIcon(emoji)}
+                  className={`text-lg hover:bg-gray-100 p-2 rounded border transition-colors cursor-pointer ${
+                    icon === emoji ? 'bg-blue-100 border-blue-300' : 'border-gray-300'
+                  }`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+            >
+              {saving ? 'Updating...' : 'Update Resource'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
