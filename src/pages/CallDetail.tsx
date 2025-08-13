@@ -997,6 +997,14 @@ function DebugTab({ rawResponse, call }: DebugTabProps) {
                           >
                             Copy
                           </button>
+                          <a
+                            href={`https://platform.openai.com/playground/threads/${step.openaiThreadId || step.threadId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                          >
+                            Open
+                          </a>
                         </div>
                       </div>
                       
@@ -1015,6 +1023,14 @@ function DebugTab({ rawResponse, call }: DebugTabProps) {
                             >
                               Copy
                             </button>
+                            <a
+                              href={`https://platform.openai.com/playground/threads/${step.openaiThreadId || step.threadId}/runs/${step.openaiRunId || step.runId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                            >
+                              Open Run
+                            </a>
                           </div>
                         </div>
                       )}
@@ -1047,6 +1063,14 @@ function DebugTab({ rawResponse, call }: DebugTabProps) {
                       >
                         Copy
                       </button>
+                      <a
+                        href={`https://platform.openai.com/playground/threads/${coaching.coachingThreadId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                      >
+                        Open
+                      </a>
                     </div>
                   </div>
                 )}
@@ -1066,6 +1090,14 @@ function DebugTab({ rawResponse, call }: DebugTabProps) {
                       >
                         Copy
                       </button>
+                      <a
+                        href={`https://platform.openai.com/playground/threads/${coaching.coachingThreadId}/runs/${coaching.coachingRunId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                      >
+                        Open Run
+                      </a>
                     </div>
                   </div>
                 )}
@@ -1126,7 +1158,7 @@ function DebugTab({ rawResponse, call }: DebugTabProps) {
                 How to use Thread IDs
               </h3>
               <div className="mt-2 text-sm text-blue-700">
-                <p>Copy any Thread ID above and paste it in the OpenAI Dashboard → Playground → Threads to see the exact conversation and prompts sent to the AI assistant.</p>
+                <p>Use the <strong>Open</strong> buttons above to directly access threads in the OpenAI Dashboard, or <strong>Copy</strong> IDs to paste elsewhere. This lets you see the exact conversation and prompts sent to the AI assistant for debugging and prompt tuning.</p>
               </div>
             </div>
           </div>
