@@ -21,16 +21,42 @@ interface OpenAIVectorStore {
 }
 
 serve(async (req) => {
+  // Always log something first
+  console.log('=== EDGE FUNCTION CALLED ===');
+  console.log(`Method: ${req.method}`);
+  console.log(`URL: ${req.url}`);
+  
   if (req.method === 'OPTIONS') {
+    console.log('Handling OPTIONS request');
     return new Response('ok', { headers: corsHeaders })
   }
 
-  let action: string;
+  let action: string = 'unknown';
   
   try {
-    console.log(`Edge function called with method: ${req.method}`);
+    console.log('Starting main function logic...');
     console.log(`Content-Type: ${req.headers.get('content-type')}`);
     console.log(`Authorization header present: ${!!req.headers.get('Authorization')}`);
+    
+    // Test if this is a transcription request early
+    const contentType = req.headers.get('content-type') || '';
+    if (contentType.includes('multipart/form-data')) {
+      console.log('Detected multipart form data request');
+      
+      // Quick test - return immediately for debugging
+      return new Response(
+        JSON.stringify({ 
+          test: 'success', 
+          message: 'Edge function is working',
+          contentType: contentType,
+          hasAuth: !!req.headers.get('Authorization')
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
     
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -63,8 +89,6 @@ serve(async (req) => {
 
     let payload: any = {};
 
-    // Handle both JSON and multipart form data
-    const contentType = req.headers.get('content-type') || '';
     console.log(`Processing request with content-type: ${contentType}`);
     
     if (contentType.includes('multipart/form-data')) {
