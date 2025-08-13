@@ -13,6 +13,7 @@ interface Organization {
   bridge_steps: any[];
   openai_assistant_id?: string;
   openai_vector_store_id?: string;
+  openai_model?: string;
   member_count: number;
   created_at: string;
 }
@@ -201,15 +202,22 @@ export default function OrganizationManagement() {
   const updateOpenAISettings = async (openaiData: {
     assistant_id: string;
     vector_store_id: string;
+    model?: string;
   }) => {
     if (!selectedOrg) return;
 
     try {
+      // If model is being updated and we have an assistant ID, update the assistant model via OpenAI API
+      if (openaiData.model && openaiData.assistant_id) {
+        await updateAssistantModel(openaiData.assistant_id, openaiData.model);
+      }
+
       const { error } = await (supabase as any)
         .from('organizations')
         .update({
           openai_assistant_id: openaiData.assistant_id || null,
-          openai_vector_store_id: openaiData.vector_store_id || null
+          openai_vector_store_id: openaiData.vector_store_id || null,
+          openai_model: openaiData.model || null
         })
         .eq('id', selectedOrg.id);
 
@@ -221,6 +229,38 @@ export default function OrganizationManagement() {
     } catch (err) {
       console.error('Error updating OpenAI settings:', err);
       alert(`Failed to update OpenAI settings: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const updateAssistantModel = async (assistantId: string, model: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session');
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-operations`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            action: 'update_assistant_model',
+            assistantId,
+            model
+          })
+        }
+      );
+
+      const result = await response.json();
+      
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to update assistant model');
+      }
+    } catch (err) {
+      console.error('Error updating assistant model:', err);
+      throw err;
     }
   };
 
@@ -360,7 +400,12 @@ export default function OrganizationManagement() {
                         <span className="text-sm text-gray-600">{selectedOrg.primary_color}</span>
                       </div>
                       {selectedOrg.openai_assistant_id && (
-                        <span className="text-sm text-green-600">✓ AI Assistant: {selectedOrg.openai_assistant_id.slice(0, 20)}...</span>
+                        <div className="space-y-1">
+                          <span className="text-sm text-green-600">✓ AI Assistant: {selectedOrg.openai_assistant_id.slice(0, 20)}...</span>
+                          {selectedOrg.openai_model && (
+                            <span className="text-sm text-blue-600 block">Model: {selectedOrg.openai_model}</span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -388,7 +433,7 @@ export default function OrganizationManagement() {
                   </button>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 border border-gray-200 rounded-lg">
                     <h4 className="text-sm font-medium text-gray-700 mb-2">AI Assistant</h4>
                     {selectedOrg.openai_assistant_id ? (
@@ -426,6 +471,27 @@ export default function OrganizationManagement() {
                         <p className="text-sm text-gray-500">No vector store configured</p>
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 mt-2">
                           Not Configured
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="p-4 border border-gray-200 rounded-lg">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">AI Model</h4>
+                    {selectedOrg.openai_model ? (
+                      <div>
+                        <p className="text-sm text-green-600 font-medium">
+                          {selectedOrg.openai_model}
+                        </p>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 mt-2">
+                          ✓ Configured
+                        </span>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-sm text-gray-500">Default model</p>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 mt-2">
+                          Using Default
                         </span>
                       </div>
                     )}
@@ -554,8 +620,17 @@ function OpenAISettingsModal({ organization, onClose, onUpdate, onAutoCreate }: 
 }) {
   const [assistantId, setAssistantId] = useState(organization.openai_assistant_id || '');
   const [vectorStoreId, setVectorStoreId] = useState(organization.openai_vector_store_id || '');
+  const [selectedModel, setSelectedModel] = useState(organization.openai_model || 'gpt-4o');
   const [saving, setSaving] = useState(false);
   const [autoCreating, setAutoCreating] = useState(false);
+
+  // Available OpenAI models
+  const availableModels = [
+    { id: 'gpt-4o', name: 'GPT-4o (Recommended)', description: 'Latest multimodal model, best performance' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Faster, more cost-effective' },
+    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', description: 'Previous generation, reliable' },
+    { id: 'gpt-4', name: 'GPT-4', description: 'Original GPT-4 model' },
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -564,7 +639,8 @@ function OpenAISettingsModal({ organization, onClose, onUpdate, onAutoCreate }: 
     try {
       await onUpdate({
         assistant_id: assistantId.trim(),
-        vector_store_id: vectorStoreId.trim()
+        vector_store_id: vectorStoreId.trim(),
+        model: selectedModel
       });
     } finally {
       setSaving(false);
@@ -645,6 +721,26 @@ function OpenAISettingsModal({ organization, onClose, onUpdate, onAutoCreate }: 
             />
             <p className="text-xs text-gray-500 mt-1">
               Found in OpenAI Dashboard → Storage → Vector Stores
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              AI Model
+            </label>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+            >
+              {availableModels.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              {availableModels.find(m => m.id === selectedModel)?.description}
             </p>
           </div>
 

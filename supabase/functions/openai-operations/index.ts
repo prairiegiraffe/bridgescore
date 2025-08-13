@@ -97,6 +97,9 @@ serve(async (req) => {
         result = await scoreCall(payload, openaiHeaders, supabaseClient)
         break
       
+      case 'update_assistant_model':
+        result = await updateAssistantModel(payload, openaiHeaders)
+        break
       
       default:
         throw new Error(`Unknown action: ${action}`)
@@ -766,5 +769,34 @@ function parseCoachingResponse(rawResponse: string) {
         }
       ]
     }
+  }
+}
+
+/**
+ * Update Assistant Model
+ */
+async function updateAssistantModel(
+  { assistantId, model }: { assistantId: string; model: string },
+  openaiHeaders: Record<string, string>
+) {
+  const response = await fetch(`https://api.openai.com/v1/assistants/${assistantId}`, {
+    method: 'POST',
+    headers: openaiHeaders,
+    body: JSON.stringify({
+      model: model
+    })
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Failed to update assistant model: ${errorText}`)
+  }
+
+  const updatedAssistant = await response.json()
+  
+  return {
+    assistantId: updatedAssistant.id,
+    model: updatedAssistant.model,
+    success: true
   }
 }
