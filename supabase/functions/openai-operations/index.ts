@@ -83,8 +83,44 @@ serve(async (req) => {
           
           // Transcription doesn't require SuperAdmin check - regular users can transcribe
           try {
-            const result = await transcribeAudio(audioFile, openaiApiKey);
-            console.log('Transcription completed successfully');
+            console.log('About to call transcribeAudio...');
+            
+            // Simple direct call to OpenAI Whisper API
+            const whisperFormData = new FormData();
+            whisperFormData.append('file', audioFile);
+            whisperFormData.append('model', 'whisper-1');
+            whisperFormData.append('response_format', 'text');
+            whisperFormData.append('language', 'en');
+            
+            console.log('Calling OpenAI Whisper API directly...');
+            
+            const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${openaiApiKey}`,
+              },
+              body: whisperFormData
+            });
+            
+            console.log(`Whisper response status: ${whisperResponse.status}`);
+            
+            const whisperText = await whisperResponse.text();
+            console.log(`Whisper response text length: ${whisperText.length}`);
+            console.log(`Whisper response preview: "${whisperText.slice(0, 100)}..."`);
+            
+            if (!whisperResponse.ok) {
+              console.error(`Whisper API error: ${whisperText}`);
+              throw new Error(`Whisper API failed (${whisperResponse.status}): ${whisperText}`);
+            }
+            
+            const result = {
+              transcription: whisperText.trim(),
+              fileName: audioFile.name,
+              fileSize: audioFile.size,
+              success: true
+            };
+            
+            console.log('Direct Whisper call completed successfully');
             
             return new Response(
               JSON.stringify(result),
@@ -94,7 +130,8 @@ serve(async (req) => {
               },
             );
           } catch (transcriptionError) {
-            console.error('Transcription failed:', transcriptionError);
+            console.error('Direct transcription failed:', transcriptionError);
+            console.error('Error details:', transcriptionError.stack);
             throw new Error(`Transcription failed: ${transcriptionError.message}`);
           }
         }
