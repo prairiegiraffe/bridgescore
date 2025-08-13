@@ -5,49 +5,36 @@ import { useOrg } from '../contexts/OrgContext';
 import { supabase } from '../lib/supabase';
 import { FLAGS } from '../lib/flags';
 
-interface ReviewQueueItem {
+interface TeamMember {
   id: string;
-  org_id: string;
-  call_id: string;
-  reviewer_id: string | null;
-  status: 'new' | 'in_review' | 'coached' | 'done';
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-  call?: {
-    title: string;
-    score_total: number;
-    user_id: string;
-  };
-  reviewer?: {
-    email: string;
-  };
+  email: string;
+  name?: string;
+  role: string;
+  avg_score: number;
+  calls_this_month: number;
+  close_rate: number;
+  last_call_date: string;
+  trend: 'up' | 'down' | 'stable';
+  monthly_scores: number[];
 }
 
-interface CoachingTask {
-  id: string;
-  org_id: string;
-  rep_user_id: string;
-  call_id: string | null;
-  step_key: string;
-  status: 'todo' | 'doing' | 'done';
-  due_date: string | null;
-  created_at: string;
-  rep?: {
-    email: string;
-  };
+interface TeamMetrics {
+  average_score: number;
+  total_calls_month: number;
+  close_rate: number;
+  month_growth: number;
+  score_trend: number[];
+  calls_trend: number[];
+  top_performers: TeamMember[];
 }
-
-type TabType = 'overview' | 'boards' | 'reports';
 
 export default function Team() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { currentOrg } = useOrg();
   
-  const [activeTab, setActiveTab] = useState<TabType>('boards');
-  const [reviewQueue, setReviewQueue] = useState<ReviewQueueItem[]>([]);
-  const [coachingTasks, setCoachingTasks] = useState<CoachingTask[]>([]);
+  const [teamMetrics, setTeamMetrics] = useState<TeamMetrics | null>(null);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [memberRole, setMemberRole] = useState<string | null>(null);
 
@@ -66,7 +53,7 @@ export default function Team() {
   // Fetch data
   useEffect(() => {
     if (memberRole && currentOrg) {
-      fetchTeamData();
+      fetchTeamPerformanceData();
     }
   }, [memberRole, currentOrg]);
 
@@ -88,377 +75,292 @@ export default function Team() {
     }
   };
 
-  const fetchTeamData = async () => {
+  const fetchTeamPerformanceData = async () => {
     if (!currentOrg) return;
     
     setLoading(true);
     try {
-      // Fetch review queue with call details (handle missing table)
-      try {
-        const { data: queueData, error: queueError } = await (supabase as any)
-          .from('review_queue')
-          .select(`
-            *,
-            call:calls(title, score_total, user_id),
-            reviewer:reviewer_id(email)
-          `)
-          .eq('org_id', currentOrg.id)
-          .order('created_at', { ascending: true });
-        
-        if (queueError) {
-          console.warn('Queue fetch error:', queueError);
+      // For now, we'll use mock data for the team performance dashboard
+      // In production, this would aggregate real data from calls and memberships tables
+      
+      // Mock team members data
+      const mockTeamMembers: TeamMember[] = [
+        {
+          id: '1',
+          email: 'sarah.johnson@example.com',
+          name: 'Sarah Johnson',
+          role: 'Senior Sales Rep',
+          avg_score: 18.4,
+          calls_this_month: 12,
+          close_rate: 72,
+          last_call_date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+          trend: 'up',
+          monthly_scores: [16.2, 17.1, 17.8, 18.4]
+        },
+        {
+          id: '2',
+          email: 'mike.chen@example.com',
+          name: 'Mike Chen',
+          role: 'Sales Rep',
+          avg_score: 16.8,
+          calls_this_month: 15,
+          close_rate: 61,
+          last_call_date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // Yesterday
+          trend: 'stable',
+          monthly_scores: [16.5, 16.9, 16.7, 16.8]
+        },
+        {
+          id: '3',
+          email: 'alex.rodriguez@example.com',
+          name: 'Alex Rodriguez',
+          role: 'Junior Sales Rep',
+          avg_score: 13.2,
+          calls_this_month: 8,
+          close_rate: 38,
+          last_call_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+          trend: 'up',
+          monthly_scores: [11.8, 12.3, 12.9, 13.2]
+        },
+        {
+          id: '4',
+          email: 'jennifer.smith@example.com',
+          name: 'Jennifer Smith',
+          role: 'Sales Rep',
+          avg_score: 15.9,
+          calls_this_month: 18,
+          close_rate: 58,
+          last_call_date: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // 5 hours ago
+          trend: 'down',
+          monthly_scores: [17.2, 16.8, 16.1, 15.9]
         }
-        setReviewQueue(queueData || []);
-      } catch (err) {
-        console.warn('Review queue not available:', err);
-        setReviewQueue([]);
-      }
+      ];
 
-      // Fetch coaching tasks with rep details (handle missing table)
-      try {
-        const { data: tasksData, error: tasksError } = await (supabase as any)
-          .from('coaching_tasks')
-          .select(`
-            *,
-            rep:rep_user_id(email)
-          `)
-          .eq('org_id', currentOrg.id)
-          .order('due_date', { ascending: true });
-        
-        if (tasksError) {
-          console.warn('Tasks fetch error:', tasksError);
-        }
-        setCoachingTasks(tasksData || []);
-      } catch (err) {
-        console.warn('Coaching tasks not available:', err);
-        setCoachingTasks([]);
-      }
+      // Mock team metrics
+      const mockMetrics: TeamMetrics = {
+        average_score: 16.2,
+        total_calls_month: 127,
+        close_rate: 64,
+        month_growth: 18,
+        score_trend: [15.2, 15.8, 16.1, 16.2],
+        calls_trend: [98, 112, 119, 127],
+        top_performers: mockTeamMembers.sort((a, b) => b.avg_score - a.avg_score).slice(0, 3)
+      };
+
+      setTeamMembers(mockTeamMembers);
+      setTeamMetrics(mockMetrics);
+      
     } catch (err) {
-      console.error('Error fetching team data:', err);
+      console.error('Error fetching team performance data:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const updateReviewStatus = async (itemId: string, newStatus: ReviewQueueItem['status']) => {
-    if (!currentOrg || memberRole !== 'owner' && memberRole !== 'admin') return;
+  const formatTimeAgo = (dateString: string) => {
+    const now = new Date();
+    const past = new Date(dateString);
+    const diffInHours = Math.floor((now.getTime() - past.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays === 1) return 'Yesterday';
+    if (diffInDays < 30) return `${diffInDays} days ago`;
+    
+    return past.toLocaleDateString();
+  };
 
-    try {
-      const { error } = await (supabase as any)
-        .from('review_queue')
-        .update({ 
-          status: newStatus,
-          reviewer_id: newStatus === 'in_review' ? user?.id : undefined
-        })
-        .eq('id', itemId);
-      
-      if (error) throw error;
-      await fetchTeamData();
-    } catch (err) {
-      console.error('Error updating review status:', err);
-      alert('Review queue updates not available yet. Please run database migrations.');
+  const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
+    switch (trend) {
+      case 'up':
+        return <span className="text-green-500">↗</span>;
+      case 'down':
+        return <span className="text-red-500">↘</span>;
+      default:
+        return <span className="text-gray-500">→</span>;
     }
   };
 
-  const updateTaskStatus = async (taskId: string, newStatus: CoachingTask['status']) => {
-    if (!currentOrg || memberRole !== 'owner' && memberRole !== 'admin') return;
-
-    try {
-      const { error } = await (supabase as any)
-        .from('coaching_tasks')
-        .update({ status: newStatus })
-        .eq('id', taskId);
-      
-      if (error) throw error;
-      await fetchTeamData();
-    } catch (err) {
-      console.error('Error updating task status:', err);
-      alert('Coaching task updates not available yet. Please run database migrations.');
-    }
-  };
-
-  const stepLabels: Record<string, string> = {
-    pinpoint_pain: 'Pinpoint Pain',
-    qualify: 'Qualify',
-    solution_success: 'Solution Success',
-    qa: 'Q&A',
-    next_steps: 'Next Steps',
-    close_or_schedule: 'Close or Schedule',
-  };
-
-  if (loading) {
+  if (loading || !teamMetrics) {
     return (
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto p-6">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Team Management</h1>
-        <p className="text-gray-500 mt-1">Review calls and manage coaching for {currentOrg?.name}</p>
+    <div className="max-w-7xl mx-auto p-6">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Team Performance Dashboard</h1>
+        <p className="text-gray-500 mt-1">Monitor and analyze team performance for {currentOrg?.name}</p>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'overview'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab('boards')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'boards'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Boards
-          </button>
-          <button
-            onClick={() => setActiveTab('reports')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'reports'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Reports
-          </button>
-        </nav>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900">Calls in Review</h3>
-            <p className="text-3xl font-bold text-blue-600 mt-2">
-              {reviewQueue.filter(item => item.status !== 'done').length}
-            </p>
-          </div>
-          <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900">Active Coaching Tasks</h3>
-            <p className="text-3xl font-bold text-green-600 mt-2">
-              {coachingTasks.filter(task => task.status !== 'done').length}
-            </p>
-          </div>
-          <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900">Completed This Week</h3>
-            <p className="text-3xl font-bold text-gray-600 mt-2">
-              {reviewQueue.filter(item => item.status === 'done').length}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'boards' && (
-        <div className="space-y-8">
-          {/* Call Review Queue Kanban */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Call Review Queue</h2>
-            {reviewQueue.length === 0 && (
-              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md mb-4">
-                No review queue items found. You can add calls to the review queue from individual call pages.
-                {memberRole === 'owner' || memberRole === 'admin' ? ' Note: Team features require database migrations to be run.' : ''}
-              </div>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {(['new', 'in_review', 'coached', 'done'] as const).map(status => (
-                <div key={status} className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-medium text-gray-700 mb-3 capitalize">
-                    {status.replace('_', ' ')}
-                    <span className="ml-2 text-sm text-gray-500">
-                      ({reviewQueue.filter(item => item.status === status).length})
-                    </span>
-                  </h3>
-                  <div className="space-y-2">
-                    {reviewQueue
-                      .filter(item => item.status === status)
-                      .map(item => (
-                        <ReviewQueueCard
-                          key={item.id}
-                          item={item}
-                          onStatusChange={(newStatus) => updateReviewStatus(item.id, newStatus)}
-                          canEdit={memberRole === 'owner' || memberRole === 'admin'}
-                        />
-                      ))}
-                  </div>
-                </div>
-              ))}
+      {/* Key Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
             </div>
-          </div>
-
-          {/* Coaching Plans Kanban */}
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Coaching Plans</h2>
-            {coachingTasks.length === 0 && (
-              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md mb-4">
-                No coaching tasks found. You can create coaching tasks from individual call pages.
-                {memberRole === 'owner' || memberRole === 'admin' ? ' Note: Team features require database migrations to be run.' : ''}
-              </div>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {(['todo', 'doing', 'done'] as const).map(status => (
-                <div key={status} className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-medium text-gray-700 mb-3 capitalize">
-                    {status === 'todo' ? 'To Do' : status === 'doing' ? 'In Progress' : 'Done'}
-                    <span className="ml-2 text-sm text-gray-500">
-                      ({coachingTasks.filter(task => task.status === status).length})
-                    </span>
-                  </h3>
-                  <div className="space-y-2">
-                    {coachingTasks
-                      .filter(task => task.status === status)
-                      .map(task => (
-                        <CoachingTaskCard
-                          key={task.id}
-                          task={task}
-                          stepLabels={stepLabels}
-                          onStatusChange={(newStatus) => updateTaskStatus(task.id, newStatus)}
-                          canEdit={memberRole === 'owner' || memberRole === 'admin'}
-                        />
-                      ))}
-                  </div>
-                </div>
-              ))}
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Team Average Score</p>
+              <p className="text-2xl font-bold text-gray-900">{teamMetrics.average_score}</p>
             </div>
           </div>
         </div>
-      )}
 
-      {activeTab === 'reports' && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <p className="text-gray-500">Reports coming soon...</p>
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Total Calls This Month</p>
+              <p className="text-2xl font-bold text-gray-900">{teamMetrics.total_calls_month}</p>
+            </div>
+          </div>
         </div>
-      )}
-    </div>
-  );
-}
 
-// Review Queue Card Component
-function ReviewQueueCard({ 
-  item, 
-  onStatusChange, 
-  canEdit 
-}: { 
-  item: ReviewQueueItem; 
-  onStatusChange: (status: ReviewQueueItem['status']) => void;
-  canEdit: boolean;
-}) {
-  const getScoreColor = (score: number) => {
-    if (score >= 16) return 'text-green-600';
-    if (score >= 10) return 'text-yellow-600';
-    return 'text-red-600';
-  };
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Team Close Rate</p>
+              <p className="text-2xl font-bold text-gray-900">{teamMetrics.close_rate}%</p>
+            </div>
+          </div>
+        </div>
 
-  const getTimeAgo = (date: string) => {
-    const now = new Date();
-    const past = new Date(date);
-    const diffInDays = Math.floor((now.getTime() - past.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (diffInDays === 0) return 'Today';
-    if (diffInDays === 1) return '1 day ago';
-    return `${diffInDays} days ago`;
-  };
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm">
-      <div className="mb-2">
-        <h4 className="font-medium text-gray-900 text-sm truncate">
-          {item.call?.title || 'Untitled Call'}
-        </h4>
-        <div className="flex items-center justify-between mt-1">
-          <span className={`text-lg font-bold ${getScoreColor(item.call?.score_total || 0)}`}>
-            {item.call?.score_total || 0}/20
-          </span>
-          <span className="text-xs text-gray-500">
-            {getTimeAgo(item.created_at)}
-          </span>
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M trending-up" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Month-over-Month Growth</p>
+              <p className="text-2xl font-bold text-green-600">+{teamMetrics.month_growth}%</p>
+            </div>
+          </div>
         </div>
       </div>
-      
-      {item.reviewer && (
-        <p className="text-xs text-gray-600 mb-2">
-          Reviewer: {item.reviewer.email}
-        </p>
-      )}
 
-      {canEdit && (
-        <select
-          value={item.status}
-          onChange={(e) => onStatusChange(e.target.value as ReviewQueueItem['status'])}
-          className="w-full text-xs px-2 py-1 border border-gray-300 rounded"
-        >
-          <option value="new">New</option>
-          <option value="in_review">In Review</option>
-          <option value="coached">Coached</option>
-          <option value="done">Done</option>
-        </select>
-      )}
-    </div>
-  );
-}
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Score Trend Chart */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Score Trend</h3>
+          <div className="flex items-end space-x-2 h-40">
+            {teamMetrics.score_trend.map((score, index) => (
+              <div key={index} className="flex-1 flex flex-col items-center">
+                <div 
+                  className="bg-blue-500 rounded-t-sm w-full transition-all duration-500"
+                  style={{ height: `${(score / 20) * 100}%` }}
+                ></div>
+                <span className="text-xs text-gray-500 mt-2">Week {index + 1}</span>
+                <span className="text-xs font-semibold text-gray-700">{score}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
-// Coaching Task Card Component
-function CoachingTaskCard({ 
-  task, 
-  stepLabels,
-  onStatusChange, 
-  canEdit 
-}: { 
-  task: CoachingTask;
-  stepLabels: Record<string, string>;
-  onStatusChange: (status: CoachingTask['status']) => void;
-  canEdit: boolean;
-}) {
-  const getDueDateColor = (dueDate: string | null) => {
-    if (!dueDate) return '';
-    const due = new Date(dueDate);
-    const today = new Date();
-    const diffInDays = Math.floor((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (diffInDays < 0) return 'text-red-600';
-    if (diffInDays <= 3) return 'text-yellow-600';
-    return 'text-gray-600';
-  };
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm">
-      <div className="mb-2">
-        <h4 className="font-medium text-gray-900 text-sm">
-          {task.rep?.email || 'Unknown Rep'}
-        </h4>
-        <p className="text-xs text-gray-600 mt-1">
-          {stepLabels[task.step_key] || task.step_key}
-        </p>
-        {task.due_date && (
-          <p className={`text-xs mt-1 ${getDueDateColor(task.due_date)}`}>
-            Due: {new Date(task.due_date).toLocaleDateString()}
-          </p>
-        )}
+        {/* Calls Volume Chart */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Call Volume</h3>
+          <div className="flex items-end space-x-2 h-40">
+            {teamMetrics.calls_trend.map((calls, index) => (
+              <div key={index} className="flex-1 flex flex-col items-center">
+                <div 
+                  className="bg-green-500 rounded-t-sm w-full transition-all duration-500"
+                  style={{ height: `${(calls / Math.max(...teamMetrics.calls_trend)) * 100}%` }}
+                ></div>
+                <span className="text-xs text-gray-500 mt-2">Week {index + 1}</span>
+                <span className="text-xs font-semibold text-gray-700">{calls}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {canEdit && (
-        <select
-          value={task.status}
-          onChange={(e) => onStatusChange(e.target.value as CoachingTask['status'])}
-          className="w-full text-xs px-2 py-1 border border-gray-300 rounded"
-        >
-          <option value="todo">To Do</option>
-          <option value="doing">In Progress</option>
-          <option value="done">Done</option>
-        </select>
-      )}
+      {/* Team Members Table */}
+      <div className="bg-white rounded-lg border border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Team Members</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Score</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calls This Month</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Close Rate</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Call</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {teamMembers.map((member) => (
+                <tr key={member.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-medium">
+                          {member.name?.charAt(0) || member.email.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="ml-3">
+                        <div className="text-sm font-medium text-gray-900">{member.name || member.email.split('@')[0]}</div>
+                        <div className="text-sm text-gray-500">{member.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{member.role}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center space-x-2">
+                      <span className={`text-sm font-semibold ${
+                        member.avg_score >= 16 ? 'text-green-600' : 
+                        member.avg_score >= 12 ? 'text-yellow-600' : 'text-red-600'
+                      }`}>
+                        {member.avg_score}
+                      </span>
+                      {getTrendIcon(member.trend)}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{member.calls_this_month}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`text-sm font-semibold ${
+                      member.close_rate >= 60 ? 'text-green-600' : 
+                      member.close_rate >= 40 ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+                      {member.close_rate}%
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formatTimeAgo(member.last_call_date)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                    <button className="text-blue-600 hover:text-blue-800">View</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
