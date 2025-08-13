@@ -125,13 +125,14 @@ export default function Sidebar() {
                     e.currentTarget.style.display = 'none';
                   }}
                 />
-              ) : null}
-              <h1 
-                className="text-2xl font-bold"
-                style={{ color: branding.primary_color }}
-              >
-                {branding.app_name}
-              </h1>
+              ) : (
+                <h1 
+                  className="text-2xl font-bold"
+                  style={{ color: branding.primary_color }}
+                >
+                  {branding.app_name}
+                </h1>
+              )}
             </div>
             {currentOrg && (
               <div className="mt-3">
