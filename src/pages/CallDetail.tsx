@@ -300,6 +300,26 @@ export default function CallDetail() {
     }
   };
 
+  const handleDirectRescore = async () => {
+    if (!call) return;
+    
+    setRescoring(true);
+    try {
+      // Use the new rescoreCall function which handles organization-based OpenAI integration
+      await rescoreCall(call.id);
+      
+      // Refresh the call data to show updated scores and coaching
+      await fetchCall();
+      
+      alert('Call rescored successfully with OpenAI!');
+    } catch (err) {
+      console.error('Error rescoring call:', err);
+      alert('Failed to rescore call. Please check your OpenAI configuration and try again.');
+    } finally {
+      setRescoring(false);
+    }
+  };
+
   const handleRescore = async (assistantVersionId: string) => {
     if (!call || !currentOrg || !user || memberRole !== 'owner' && memberRole !== 'admin') return;
 
@@ -400,7 +420,18 @@ export default function CallDetail() {
                     </button>
                   </>
                 )}
-                {FLAGS.RESCORE_WITH_VERSION && (
+                {(FLAGS.RESCORE_WITH_VERSION || true) && (
+                  <button
+                    onClick={handleDirectRescore}
+                    className="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700"
+                    disabled={rescoring}
+                  >
+                    {rescoring ? 'Rescoring...' : 'Re-score'}
+                  </button>
+                )}
+                
+                {/* Old version-based rescore - hidden but kept for reference */}
+                {false && FLAGS.RESCORE_WITH_VERSION && (
                   <div className="relative">
                     <button
                       onClick={() => setShowRescoreMenu(!showRescoreMenu)}
