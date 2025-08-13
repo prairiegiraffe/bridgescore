@@ -998,14 +998,6 @@ function DebugTab({ rawResponse, call, currentOrg }: DebugTabProps) {
                           >
                             Copy
                           </button>
-                          <a
-                            href={`https://platform.openai.com/playground/assistants?assistant=${debugData.assistantId || currentOrg?.openai_assistant_id}&thread=${step.openaiThreadId || step.threadId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
-                          >
-                            Open
-                          </a>
                         </div>
                       </div>
                       
@@ -1064,14 +1056,6 @@ function DebugTab({ rawResponse, call, currentOrg }: DebugTabProps) {
                       >
                         Copy
                       </button>
-                      <a
-                        href={`https://platform.openai.com/playground/assistants?assistant=${debugData.assistantId || currentOrg?.openai_assistant_id}&thread=${coaching.coachingThreadId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
-                      >
-                        Open
-                      </a>
                     </div>
                   </div>
                 )}
@@ -1159,7 +1143,7 @@ function DebugTab({ rawResponse, call, currentOrg }: DebugTabProps) {
                 How to use Thread IDs
               </h3>
               <div className="mt-2 text-sm text-blue-700">
-                <p>Use the <strong>Open</strong> buttons above to directly access threads in the OpenAI Dashboard, or <strong>Copy</strong> IDs to paste elsewhere. This lets you see the exact conversation and prompts sent to the AI assistant for debugging and prompt tuning.</p>
+                <p>Use the <strong>Open Run</strong> buttons above to directly access specific runs in the OpenAI Dashboard, or <strong>Copy</strong> IDs to paste elsewhere. This lets you see the exact conversation and prompts sent to the AI assistant for debugging and prompt tuning.</p>
               </div>
             </div>
           </div>
