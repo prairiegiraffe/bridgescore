@@ -166,7 +166,7 @@ export async function updateCallWithScore(callId: string, result: ScoreCallResul
 }
 
 /**
- * Rescore a call (for backwards compatibility with existing system)
+ * Rescore a call using the new OpenAI scoring system
  */
 export async function rescoreCall(callId: string) {
   try {
@@ -180,15 +180,64 @@ export async function rescoreCall(callId: string) {
     if (fetchError) throw fetchError;
     if (!call) throw new Error('Call not found');
 
-    // Score the call with the new system
-    const result = await scoreCall({
-      callId,
-      transcript: call.transcript,
-      userId: call.user_id
-    });
+    // Get the organization for this call
+    const { data: org, error: orgError } = await (supabase as any)
+      .from('organizations')
+      .select('*')
+      .eq('id', call.organization_id)
+      .single();
+
+    if (orgError || !org) {
+      throw new Error('Organization not found for this call');
+    }
+
+    // Check if organization has OpenAI configured
+    if (!org.openai_assistant_id) {
+      throw new Error('Organization does not have OpenAI assistant configured');
+    }
+
+    // Get session for API call
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('No session');
+
+    // Call the OpenAI Edge Function to rescore
+    const supabaseUrl = (window as any).import?.meta?.env?.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const response = await fetch(
+      `${supabaseUrl}/functions/v1/openai-operations`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          action: 'score_call',
+          transcript: call.transcript,
+          organizationId: org.id
+        })
+      }
+    );
+
+    const result = await response.json();
+    
+    if (!response.ok || result.error) {
+      throw new Error(result.error || 'Failed to rescore call with OpenAI');
+    }
 
     // Update the call with the new score
-    await updateCallWithScore(callId, result);
+    const { error: updateError } = await (supabase as any)
+      .from('calls')
+      .update({
+        score_total: result.total,
+        score_breakdown: result.stepScores,
+        coaching: result.coaching,
+        openai_raw_response: result,
+        scoring_method: 'openai',
+        status: 'scored'
+      })
+      .eq('id', callId);
+
+    if (updateError) throw updateError;
 
     return result;
   } catch (error) {
