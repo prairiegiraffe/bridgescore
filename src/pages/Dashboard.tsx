@@ -360,7 +360,20 @@ export default function Dashboard() {
       setUploadMode('text');
     } catch (err) {
       console.error('Error transcribing audio:', err);
-      setError(err instanceof Error ? err.message : 'Failed to transcribe audio');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to transcribe audio';
+      
+      // Provide helpful error messages
+      if (errorMessage.includes('API key')) {
+        setError('Audio transcription is not configured. Please contact support.');
+      } else if (errorMessage.includes('too large')) {
+        setError('Audio file is too large. Please use a file smaller than 25MB.');
+      } else if (errorMessage.includes('format') || errorMessage.includes('415')) {
+        setError('Audio format not supported. Please use MP3, WAV, MP4, M4A, or WebM files.');
+      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        setError('Network error. Please check your connection and try again.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setTranscribing(false);
     }
@@ -607,9 +620,15 @@ export default function Dashboard() {
                         type="button"
                         onClick={handleTranscribeAudio}
                         disabled={transcribing}
-                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
+                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-1"
                       >
-                        {transcribing ? 'Transcribing...' : 'Transcribe Audio'}
+                        {transcribing && (
+                          <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        )}
+                        <span>{transcribing ? 'Transcribing...' : 'Transcribe Audio'}</span>
                       </button>
                     )}
                   </div>

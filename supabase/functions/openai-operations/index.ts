@@ -843,14 +843,16 @@ async function transcribeAudio(
   openaiApiKey: string
 ) {
   try {
+    console.log(`Transcribing audio file: ${audioFile.name} (${audioFile.size} bytes)`);
+    
     // Create form data for Whisper API
     const formData = new FormData();
     formData.append('file', audioFile);
     formData.append('model', 'whisper-1');
-    formData.append('response_format', 'text');
+    formData.append('response_format', 'json'); // Changed to JSON for better error handling
     
-    // Optional: Add language parameter if needed
-    // formData.append('language', 'en');
+    // Optional: Add language parameter for better accuracy
+    formData.append('language', 'en');
     
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
@@ -860,22 +862,42 @@ async function transcribeAudio(
       body: formData
     });
 
+    console.log(`Whisper API response status: ${response.status}`);
+
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Transcription failed: ${errorText}`);
+      console.error(`Whisper API error: ${errorText}`);
+      throw new Error(`Transcription API error (${response.status}): ${errorText}`);
     }
 
-    const transcription = await response.text();
+    const result = await response.json();
+    console.log('Whisper API response received successfully');
+    
+    if (!result.text) {
+      throw new Error('No transcription text in response');
+    }
     
     return {
-      transcription: transcription.trim(),
+      transcription: result.text.trim(),
       fileName: audioFile.name,
       fileSize: audioFile.size,
+      duration: result.duration || null,
+      language: result.language || 'en',
       success: true
     };
     
   } catch (error) {
     console.error('Error transcribing audio:', error);
-    throw new Error(`Audio transcription failed: ${error.message}`);
+    
+    // Provide more specific error messages
+    if (error.message.includes('JSON')) {
+      throw new Error('Audio transcription failed: Invalid response from OpenAI. Please try again.');
+    } else if (error.message.includes('413')) {
+      throw new Error('Audio file is too large. Please use a file smaller than 25MB.');
+    } else if (error.message.includes('415')) {
+      throw new Error('Audio format not supported. Please use MP3, WAV, MP4, M4A, or WebM.');
+    } else {
+      throw new Error(`Audio transcription failed: ${error.message}`);
+    }
   }
 }
