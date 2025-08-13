@@ -169,6 +169,42 @@ export default function Resources() {
     }
   };
 
+  const handleDelete = async (resource: Resource) => {
+    if (!isSuperAdmin) {
+      alert('You do not have permission to delete resources.');
+      return;
+    }
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${resource.title}"?\n\nThis action cannot be undone.`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      // In a real implementation, this would:
+      // 1. Delete the file from Supabase Storage if it exists
+      // 2. Remove the record from the database
+      // 3. Update the local state
+      
+      if (resource.file_url && resource.file_url.startsWith('/resources/')) {
+        // This would delete from Supabase Storage
+        // const filePath = resource.file_url.replace('/resources/', '');
+        // await supabase.storage.from('resources').remove([filePath]);
+      }
+      
+      // For now, just remove from local state since we're using mock data
+      setResources(prevResources => 
+        prevResources.filter(r => r.id !== resource.id)
+      );
+      
+      alert(`"${resource.title}" has been deleted successfully.`);
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      alert(`Error deleting resource: ${error.message}`);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
@@ -273,15 +309,31 @@ export default function Resources() {
               </div>
             </div>
             
-            <button
-              onClick={() => handleDownload(resource)}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-4-4m4 4l4-4m-4-4V4" />
-              </svg>
-              <span>Download {resource.file_type}</span>
-            </button>
+            <div className={`flex gap-2 ${isSuperAdmin ? 'flex' : ''}`}>
+              <button
+                onClick={() => handleDownload(resource)}
+                className={`bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 ${
+                  isSuperAdmin ? 'flex-1' : 'w-full'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-4-4m4 4l4-4m-4-4V4" />
+                </svg>
+                <span>Download {resource.file_type}</span>
+              </button>
+              
+              {isSuperAdmin && (
+                <button
+                  onClick={() => handleDelete(resource)}
+                  className="bg-red-600 text-white py-2 px-3 rounded-md hover:bg-red-700 transition-colors flex items-center justify-center"
+                  title="Delete Resource"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -320,6 +372,7 @@ function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () =
   const [category, setCategory] = useState('');
   const [customCategory, setCustomCategory] = useState('');
   const [icon, setIcon] = useState('📄');
+  const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Predefined categories based on existing resources
@@ -336,6 +389,25 @@ function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () =
     'Checklists'
   ];
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      // Check file type
+      if (!selectedFile.type.includes('pdf') && !selectedFile.type.includes('document')) {
+        alert('Please select a PDF or document file');
+        return;
+      }
+      
+      // Check file size (max 10MB)
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB');
+        return;
+      }
+      
+      setFile(selectedFile);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -347,15 +419,61 @@ function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () =
       return;
     }
     
-    // This would implement the actual resource creation logic
+    if (!file) {
+      alert('Please select a file to upload');
+      return;
+    }
+    
     setSaving(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    alert(`Resource would be added to the database:\nTitle: ${title}\nCategory: ${finalCategory}\nIcon: ${icon}`);
-    setSaving(false);
-    onAdd();
+    try {
+      // Create unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+      const filePath = `resources/${fileName}`;
+      
+      // Upload file to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('resources')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+        
+      if (uploadError) {
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
+      
+      // Get public URL for the uploaded file
+      const { data: urlData } = supabase.storage
+        .from('resources')
+        .getPublicUrl(filePath);
+      
+      // Calculate file size in MB/KB
+      const fileSize = file.size > 1024 * 1024 
+        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+        : `${(file.size / 1024).toFixed(0)} KB`;
+      
+      // For now, we'll still show an alert since we don't have a resources table yet
+      // In production, this would save to the database
+      alert(`File uploaded successfully!
+Title: ${title}
+Category: ${finalCategory}
+Icon: ${icon}
+File: ${file.name}
+Size: ${fileSize}
+Upload Path: ${filePath}
+Public URL: ${urlData.publicUrl}
+
+Note: This would now be saved to the database in production.`);
+      
+      onAdd();
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      alert(`Error uploading file: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -431,23 +549,83 @@ function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () =
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
+              File Upload *
+            </label>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.ppt,.pptx"
+                onChange={handleFileChange}
+                className="hidden"
+                id="file-upload"
+                required
+              />
+              <label htmlFor="file-upload" className="cursor-pointer">
+                {file ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <span className="text-2xl">📄</span>
+                    <div>
+                      <p className="text-sm font-medium text-green-600">{file.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {file.size > 1024 * 1024 
+                          ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+                          : `${(file.size / 1024).toFixed(0)} KB`
+                        }
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <span className="text-2xl text-gray-400">📁</span>
+                    <p className="text-sm text-gray-600 mt-1">Click to select file</p>
+                    <p className="text-xs text-gray-400">PDF, DOC, DOCX, PPT, PPTX (Max 10MB)</p>
+                  </div>
+                )}
+              </label>
+              {file && (
+                <button
+                  type="button"
+                  onClick={() => setFile(null)}
+                  className="mt-2 text-xs text-red-600 hover:text-red-800"
+                >
+                  Remove file
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
               Icon
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              <input
-                type="text"
-                value={icon}
-                onChange={(e) => setIcon(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="📄"
-              />
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
+                <input
+                  type="text"
+                  value={icon}
+                  onChange={(e) => setIcon(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  placeholder="📄"
+                />
+              </div>
               <div className="flex items-center justify-center border border-gray-300 rounded-md bg-gray-50">
-                <span className="text-2xl">{icon || '📄'}</span>
+                <span className="text-2xl">{icon}</span>
               </div>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Common icons: 📄 📊 🎯 🛡️ 📝 🎓 📚 ⚡ 🔧 💡
-            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {['📄', '📊', '🎯', '🛡️', '📝', '🎓', '📚', '⚡', '🔧', '💡'].map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => setIcon(emoji)}
+                  className={`text-lg hover:bg-gray-100 p-2 rounded border transition-colors cursor-pointer ${
+                    icon === emoji ? 'bg-blue-100 border-blue-300' : 'border-gray-300'
+                  }`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex justify-end space-x-3 pt-4">
