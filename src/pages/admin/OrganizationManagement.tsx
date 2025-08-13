@@ -269,7 +269,7 @@ export default function OrganizationManagement() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-6 lg:py-6">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
       </div>
     );
@@ -277,7 +277,7 @@ export default function OrganizationManagement() {
 
   if (!isSuperAdmin) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-6 lg:py-6">
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
           Access denied. SuperAdmin privileges required.
         </div>
@@ -286,7 +286,7 @@ export default function OrganizationManagement() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-6 lg:py-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Organization Management</h1>
         <p className="text-gray-500 mt-1">Manage organizations and their users</p>

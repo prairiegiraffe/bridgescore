@@ -648,7 +648,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-6 lg:py-6">
       {/* Header with Welcome and Score Button */}
       <div className="flex justify-between items-center mb-6">
         <div>
