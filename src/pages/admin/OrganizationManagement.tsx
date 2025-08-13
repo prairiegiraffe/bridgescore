@@ -297,7 +297,7 @@ export default function OrganizationManagement() {
     if (!currentUser) return;
 
     try {
-      const { data, error } = await (supabase as any)
+      const { error } = await (supabase as any)
         .rpc('update_global_branding', {
           new_settings: brandingData,
           updated_by_user: currentUser.id
@@ -1312,4 +1312,3 @@ function GlobalBrandingModal({ branding, onClose, onUpdate }: {
     </div>
   );
 }
-EOF < /dev/null
