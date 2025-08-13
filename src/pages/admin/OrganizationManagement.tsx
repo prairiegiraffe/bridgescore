@@ -620,16 +620,50 @@ function OpenAISettingsModal({ organization, onClose, onUpdate, onAutoCreate }: 
 }) {
   const [assistantId, setAssistantId] = useState(organization.openai_assistant_id || '');
   const [vectorStoreId, setVectorStoreId] = useState(organization.openai_vector_store_id || '');
-  const [selectedModel, setSelectedModel] = useState(organization.openai_model || 'gpt-4o');
+  const [selectedModel, setSelectedModel] = useState(organization.openai_model || 'gpt-4o-2024-11-20');
   const [saving, setSaving] = useState(false);
   const [autoCreating, setAutoCreating] = useState(false);
 
-  // Available OpenAI models
+  // Available OpenAI models - organized by generation and capability
   const availableModels = [
-    { id: 'gpt-4o', name: 'GPT-4o (Recommended)', description: 'Latest multimodal model, best performance' },
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Faster, more cost-effective' },
-    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', description: 'Previous generation, reliable' },
-    { id: 'gpt-4', name: 'GPT-4', description: 'Original GPT-4 model' },
+    // Latest O-series Models (Reasoning Models)
+    { id: 'o3-mini-2025-01-31', name: 'O3 Mini (2025-01-31)', description: 'Latest reasoning model, optimized for complex problem solving', category: 'O-Series' },
+    { id: 'o3-mini', name: 'O3 Mini', description: 'Latest reasoning model, compact version', category: 'O-Series' },
+    { id: 'o1-2024-12-17', name: 'O1 (2024-12-17)', description: 'Advanced reasoning model', category: 'O-Series' },
+    { id: 'o1', name: 'O1', description: 'OpenAI reasoning model', category: 'O-Series' },
+    
+    // GPT-4.1 Series (Latest Generation)
+    { id: 'gpt-4.1-2025-04-14', name: 'GPT-4.1 (2025-04-14)', description: 'Latest GPT-4.1 model with enhanced capabilities', category: 'GPT-4.1' },
+    { id: 'gpt-4.1', name: 'GPT-4.1', description: 'Next-generation GPT model', category: 'GPT-4.1' },
+    { id: 'gpt-4.1-mini-2025-04-14', name: 'GPT-4.1 Mini (2025-04-14)', description: 'Compact GPT-4.1, faster and cost-effective', category: 'GPT-4.1' },
+    { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', description: 'Efficient GPT-4.1 variant', category: 'GPT-4.1' },
+    { id: 'gpt-4.1-nano-2025-04-14', name: 'GPT-4.1 Nano (2025-04-14)', description: 'Ultra-compact GPT-4.1, fastest response', category: 'GPT-4.1' },
+    { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano', description: 'Ultra-lightweight GPT-4.1', category: 'GPT-4.1' },
+    
+    // GPT-4o Series (Multimodal)
+    { id: 'gpt-4o-2024-11-20', name: 'GPT-4o (2024-11-20) - Recommended', description: 'Latest multimodal model, best performance', category: 'GPT-4o' },
+    { id: 'gpt-4o', name: 'GPT-4o', description: 'Multimodal GPT-4 optimized', category: 'GPT-4o' },
+    { id: 'gpt-4o-2024-08-06', name: 'GPT-4o (2024-08-06)', description: 'Stable GPT-4o release', category: 'GPT-4o' },
+    { id: 'gpt-4o-2024-05-13', name: 'GPT-4o (2024-05-13)', description: 'Initial GPT-4o release', category: 'GPT-4o' },
+    { id: 'gpt-4o-mini-2024-07-18', name: 'GPT-4o Mini (2024-07-18)', description: 'Compact multimodal model', category: 'GPT-4o' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Faster, more cost-effective multimodal', category: 'GPT-4o' },
+    
+    // GPT-4 Turbo Series
+    { id: 'gpt-4-turbo-2024-04-09', name: 'GPT-4 Turbo (2024-04-09)', description: 'Latest GPT-4 Turbo with enhanced capabilities', category: 'GPT-4 Turbo' },
+    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', description: 'High-performance GPT-4 variant', category: 'GPT-4 Turbo' },
+    { id: 'gpt-4-turbo-preview', name: 'GPT-4 Turbo Preview', description: 'Preview version of GPT-4 Turbo', category: 'GPT-4 Turbo' },
+    
+    // GPT-4 Classic Series
+    { id: 'gpt-4-0125-preview', name: 'GPT-4 (0125-preview)', description: 'GPT-4 preview with improvements', category: 'GPT-4' },
+    { id: 'gpt-4-1106-preview', name: 'GPT-4 (1106-preview)', description: 'GPT-4 November preview', category: 'GPT-4' },
+    { id: 'gpt-4-0613', name: 'GPT-4 (0613)', description: 'Stable GPT-4 June release', category: 'GPT-4' },
+    { id: 'gpt-4', name: 'GPT-4', description: 'Original GPT-4 model', category: 'GPT-4' },
+    
+    // GPT-3.5 Series
+    { id: 'gpt-3.5-turbo-0125', name: 'GPT-3.5 Turbo (0125)', description: 'Latest GPT-3.5 Turbo', category: 'GPT-3.5' },
+    { id: 'gpt-3.5-turbo-1106', name: 'GPT-3.5 Turbo (1106)', description: 'GPT-3.5 November update', category: 'GPT-3.5' },
+    { id: 'gpt-3.5-turbo-16k', name: 'GPT-3.5 Turbo 16K', description: 'Extended context GPT-3.5', category: 'GPT-3.5' },
+    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', description: 'Fast and cost-effective', category: 'GPT-3.5' },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -733,11 +767,21 @@ function OpenAISettingsModal({ organization, onClose, onUpdate, onAutoCreate }: 
               onChange={(e) => setSelectedModel(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
             >
-              {availableModels.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.name}
-                </option>
-              ))}
+              {/* Group models by category */}
+              {['O-Series', 'GPT-4.1', 'GPT-4o', 'GPT-4 Turbo', 'GPT-4', 'GPT-3.5'].map(category => {
+                const categoryModels = availableModels.filter(model => model.category === category);
+                if (categoryModels.length === 0) return null;
+                
+                return (
+                  <optgroup key={category} label={`${category} Models`}>
+                    {categoryModels.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
             </select>
             <p className="text-xs text-gray-500 mt-1">
               {availableModels.find(m => m.id === selectedModel)?.description}
