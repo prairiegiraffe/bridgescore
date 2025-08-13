@@ -605,7 +605,7 @@ export default function CallDetail() {
           )}
           
           {activeTab === 'debug' && isSuperAdmin && (
-            <DebugTab rawResponse={call.openai_raw_response} call={call} />
+            <DebugTab rawResponse={call.openai_raw_response} call={call} currentOrg={currentOrg} />
           )}
         </div>
       </div>
@@ -917,9 +917,10 @@ function AICoachingTab({ coaching }: AICoachingTabProps) {
 interface DebugTabProps {
   rawResponse: any;
   call: CallData;
+  currentOrg: any;
 }
 
-function DebugTab({ rawResponse, call }: DebugTabProps) {
+function DebugTab({ rawResponse, call, currentOrg }: DebugTabProps) {
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     alert(`${label} copied to clipboard\!`);
