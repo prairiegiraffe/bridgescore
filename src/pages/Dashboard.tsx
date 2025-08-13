@@ -21,6 +21,9 @@ interface Call {
     name: string;
     version: string;
   };
+  flagged_for_review?: boolean;
+  flag_reason?: string;
+  manually_adjusted?: boolean;
 }
 
 interface FilterParams {
@@ -899,40 +902,60 @@ export default function Dashboard() {
             No calls yet. Score your first call above to get started!
           </p>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {recentCalls.map((call) => (
               <Link
                 key={call.id}
                 to={`/calls/${call.id}`}
-                className="block border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition-colors"
+                className="block border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-lg transition-all relative group"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-medium text-gray-900 truncate">
-                      {call.title}
-                    </h3>
-                    <div className="flex items-center space-x-4 mt-1">
-                      <p className="text-sm text-gray-500">
-                        {formatDate(call.created_at)}
-                      </p>
-                      {FLAGS.ORGS && call.user?.email && (
-                        <p className="text-sm text-gray-500">
-                          by {call.user.email}
-                        </p>
-                      )}
-                      {call.assistant_version && (
-                        <span className="text-xs text-gray-400">
-                          {call.assistant_version.name} v{call.assistant_version.version}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="ml-4 flex-shrink-0">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getScoreColor(call.score_total)}`}>
-                      {call.score_total}/20
+                {/* Flag/Status Indicators */}
+                <div className="absolute top-2 right-2 flex space-x-1">
+                  {call.flagged_for_review && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800" title={call.flag_reason || 'Flagged for review'}>
+                      🚩
                     </span>
-                  </div>
+                  )}
+                  {call.manually_adjusted && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800" title="Manually adjusted">
+                      ✏️
+                    </span>
+                  )}
                 </div>
+                
+                {/* Score Badge */}
+                <div className="mb-3">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(call.score_total)}`}>
+                    {call.score_total}/20
+                  </span>
+                </div>
+                
+                {/* Call Title */}
+                <h3 className="text-sm font-medium text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600">
+                  {call.title}
+                </h3>
+                
+                {/* Metadata */}
+                <div className="space-y-1 text-xs text-gray-500">
+                  <p>{formatDate(call.created_at)}</p>
+                  {FLAGS.ORGS && call.user?.email && (
+                    <p>by {call.user.email}</p>
+                  )}
+                  {call.assistant_version && (
+                    <p className="text-gray-400">
+                      {call.assistant_version.name} v{call.assistant_version.version}
+                    </p>
+                  )}
+                </div>
+                
+                {/* Flag Reason Tooltip on Hover */}
+                {call.flagged_for_review && call.flag_reason && (
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    <p className="text-xs text-red-600 line-clamp-2" title={call.flag_reason}>
+                      ⚠️ {call.flag_reason}
+                    </p>
+                  </div>
+                )}
               </Link>
             ))}
           </div>
