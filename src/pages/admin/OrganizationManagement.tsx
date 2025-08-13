@@ -304,7 +304,7 @@ export default function OrganizationManagement() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
       </div>
     );
@@ -312,7 +312,7 @@ export default function OrganizationManagement() {
 
   if (!isSuperAdmin) {
     return (
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
           Access denied. SuperAdmin privileges required.
         </div>
@@ -321,15 +321,15 @@ export default function OrganizationManagement() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Organization Management</h1>
         <p className="text-gray-500 mt-1">Manage organizations and their users</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Organizations List */}
-        <div className="lg:col-span-1">
+        <div className="xl:col-span-1">
           <div className="bg-white shadow rounded-lg">
             <div className="p-4 border-b border-gray-200">
               <div className="flex justify-between items-center">
@@ -380,7 +380,7 @@ export default function OrganizationManagement() {
         </div>
 
         {/* Organization Details */}
-        <div className="lg:col-span-2">
+        <div className="xl:col-span-2">
           {selectedOrg ? (
             <div className="space-y-6">
               {/* Organization Info */}
@@ -433,7 +433,7 @@ export default function OrganizationManagement() {
                   </button>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="p-4 border border-gray-200 rounded-lg">
                     <h4 className="text-sm font-medium text-gray-700 mb-2">AI Assistant</h4>
                     {selectedOrg.openai_assistant_id ? (
@@ -691,7 +691,7 @@ function OpenAISettingsModal({ organization, onClose, onUpdate, onAutoCreate }: 
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-lg p-6 max-w-lg w-full">
         <h3 className="text-lg font-semibold mb-2">Configure OpenAI for {organization.name}</h3>
         <p className="text-sm text-gray-600 mb-4">
@@ -868,7 +868,7 @@ function CreateOrganizationModal({ onClose, onCreate }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-lg p-6 max-w-lg w-full">
         <h3 className="text-lg font-semibold mb-4">Create New Organization</h3>
         
@@ -972,7 +972,7 @@ function InviteUserModal({ organization, onClose, onInvite }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-lg p-6 max-w-lg w-full">
         <h3 className="text-lg font-semibold mb-2">Invite User to {organization.name}</h3>
         <p className="text-sm text-gray-600 mb-4">

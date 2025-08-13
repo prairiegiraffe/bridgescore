@@ -368,7 +368,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Dashboard</h1>
       
       {/* Create New Call Form */}
@@ -457,7 +457,7 @@ export default function Dashboard() {
         {/* Filter Controls */}
         {showFilters && (
           <div className="border-t border-gray-200 pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
               {/* Rep Filter */}
               {FLAGS.ORGS && orgMembers.length > 0 && (
                 <div>
@@ -655,7 +655,7 @@ export default function Dashboard() {
 
       {/* Save Filter Modal */}
       {showSaveModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <h3 className="text-lg font-semibold mb-4">Save Filter</h3>
             
