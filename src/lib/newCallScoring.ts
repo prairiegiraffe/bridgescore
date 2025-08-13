@@ -201,9 +201,8 @@ export async function rescoreCall(callId: string) {
     if (!session) throw new Error('No session');
 
     // Call the OpenAI Edge Function to rescore
-    const supabaseUrl = (window as any).import?.meta?.env?.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const response = await fetch(
-      `${supabaseUrl}/functions/v1/openai-operations`,
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openai-operations`,
       {
         method: 'POST',
         headers: {
