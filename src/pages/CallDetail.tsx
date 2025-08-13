@@ -113,29 +113,14 @@ export default function CallDetail() {
     if (!id) return;
 
     try {
-      // First try with assistant version join
+      // Try without the join first (backwards compatibility)
       let { data, error: fetchError } = await (supabase as any)
         .from('calls')
-        .select(`
-          *,
-          assistant_version:ai_assistant_versions(name, version)
-        `)
+        .select('*')
         .eq('id', id)
         .single();
 
-      // If that fails, try without the join (backwards compatibility)
-      if (fetchError && fetchError.code) {
-        const { data: fallbackData, error: fallbackError } = await (supabase as any)
-          .from('calls')
-          .select('*')
-          .eq('id', id)
-          .single();
-        
-        if (fallbackError) throw fallbackError;
-        data = fallbackData;
-      } else if (fetchError) {
-        throw fetchError;
-      }
+      if (fetchError) throw fetchError;
 
       setCall(data);
     } catch (err) {
