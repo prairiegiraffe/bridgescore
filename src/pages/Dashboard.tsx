@@ -102,7 +102,18 @@ export default function Dashboard() {
       // Try enhanced query first, fall back to basic query if columns don't exist
       let query = (supabase as any)
         .from('calls')
-        .select('id, title, score_total, created_at')
+        .select(`
+          id, 
+          title, 
+          score_total, 
+          created_at, 
+          flagged_for_review, 
+          flag_reason, 
+          manually_adjusted,
+          user_id,
+          framework_version,
+          assistant_version_id
+        `)
         .order('created_at', { ascending: false })
         .limit(100);
 
