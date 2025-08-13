@@ -120,7 +120,7 @@ export default function Sidebar() {
                 <img 
                   src={branding.logo_url} 
                   alt={branding.app_name}
-                  className="h-12 w-auto"
+                  className="w-auto"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
                   }}
