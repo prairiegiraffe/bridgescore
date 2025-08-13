@@ -20,11 +20,6 @@ interface Resource {
   file_type?: string;
 }
 
-interface User {
-  id: string;
-  email: string;
-  full_name?: string;
-}
 
 export default function Resources() {
   const { user } = useAuth();
