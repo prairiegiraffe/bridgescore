@@ -659,8 +659,8 @@ export default function CallDetail() {
                           >
                             {step.credit === 1 ? 'Full' : step.credit === 0.5 ? 'Partial' : 'None'}
                           </span>
-                          <span className="text-sm font-medium text-gray-600">
-                            {step.credit} × {step.weight} = {step.credit * step.weight}
+                          <span className="text-lg font-bold text-gray-900 bg-gray-100 px-2 py-1 rounded">
+                            {step.credit * step.weight}
                           </span>
                         </div>
                       </div>
@@ -701,8 +701,8 @@ export default function CallDetail() {
                               <option value={1}>1 (Full)</option>
                             </select>
                           </div>
-                          <span className="text-sm font-medium text-gray-600">
-                            {step.credit} × {step.weight} = {step.credit * step.weight}
+                          <span className="text-lg font-bold text-gray-900 bg-gray-100 px-2 py-1 rounded">
+                            {step.credit * step.weight}
                           </span>
                         </div>
                       </div>
@@ -1195,12 +1195,12 @@ function DebugTab({ rawResponse, call, currentOrg }: DebugTabProps) {
                 <div key={index} className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
                     <h5 className="font-medium text-purple-900">{step.stepName}</h5>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                    <span className={`px-3 py-1 rounded text-lg font-bold ${
                       step.color === "green" ? "bg-green-100 text-green-800" :
                       step.color === "yellow" ? "bg-yellow-100 text-yellow-800" :
                       "bg-red-100 text-red-800"
                     }`}>
-                      {step.credit} × {step.weight} = {step.credit * step.weight}
+                      {step.credit * step.weight}
                     </span>
                   </div>
                   
