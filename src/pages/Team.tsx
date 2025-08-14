@@ -222,7 +222,7 @@ export default function Team() {
       if (membersError) throw membersError;
 
       // Get user details separately
-      const userIds = memberships?.map(m => m.user_id) || [];
+      const userIds = memberships?.map((m: any) => m.user_id) || [];
       const { data: users, error: usersError } = await (supabase as any)
         .from('auth.users')
         .select('id, email, raw_user_meta_data')
@@ -239,8 +239,8 @@ export default function Team() {
       }
 
       // Combine memberships with user details
-      const members = memberships?.map(membership => {
-        const user = userDetails?.find(u => u.id === membership.user_id);
+      const members = memberships?.map((membership: any) => {
+        const user = userDetails?.find((u: any) => u.id === membership.user_id);
         return {
           user_id: membership.user_id,
           role: membership.role,
