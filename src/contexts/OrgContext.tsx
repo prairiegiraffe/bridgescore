@@ -51,7 +51,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
           organization:organizations(
             id,
             name,
-            is_demo,
+            demo_mode,
             openai_assistant_id,
             openai_vector_store_id
           )
@@ -65,7 +65,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       const orgs = data?.map((membership: any) => ({
         id: membership.organization.id,
         name: membership.organization.name,
-        is_demo: membership.organization.is_demo,
+        demo_mode: membership.organization.demo_mode,
         role: membership.role,
         openai_assistant_id: membership.organization.openai_assistant_id,
         openai_vector_store_id: membership.organization.openai_vector_store_id,

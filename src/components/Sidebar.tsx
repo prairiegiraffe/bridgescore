@@ -22,9 +22,12 @@ export default function Sidebar() {
 
   const checkSuperAdmin = async () => {
     if (!user || !currentOrg) {
+      console.log('checkSuperAdmin: Missing user or currentOrg', { user: !!user, currentOrg: !!currentOrg });
       setIsSuperAdmin(false);
       return;
     }
+
+    console.log('checkSuperAdmin: Checking for user', user.id, 'in org', currentOrg.id);
 
     try {
       const { data, error } = await (supabase as any)
@@ -34,11 +37,18 @@ export default function Sidebar() {
         .eq('org_id', currentOrg.id)
         .single();
 
+      console.log('checkSuperAdmin result:', { data, error });
+
       if (!error && data) {
+        console.log('Setting isSuperAdmin to:', data.is_superadmin);
         setIsSuperAdmin(data.is_superadmin || false);
+      } else {
+        console.log('No membership found or error occurred');
+        setIsSuperAdmin(false);
       }
     } catch (err) {
       console.error('Error checking SuperAdmin status:', err);
+      setIsSuperAdmin(false);
     }
   };
 
