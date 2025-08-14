@@ -159,15 +159,27 @@ export default function Sidebar() {
               <div className="mt-3">
                 <button
                   onClick={() => setShowOrgMenu(!showOrgMenu)}
-                  className="w-full text-left text-sm text-gray-600 hover:text-gray-900 flex items-center justify-between"
+                  className={`w-full text-left text-sm text-gray-600 hover:text-gray-900 flex items-center justify-between ${
+                    (isSuperAdmin || organizations.length > 1) ? 'cursor-pointer' : 'cursor-default'
+                  }`}
+                  disabled={!isSuperAdmin && organizations.length <= 1}
                 >
-                  <span className="truncate">{currentOrg.name}</span>
-                  <svg className={`w-4 h-4 transition-transform ${showOrgMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <div className="flex items-center min-w-0">
+                    <span className="truncate">{currentOrg.name}</span>
+                    {isSuperAdmin && (
+                      <span className="ml-2 px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">
+                        SuperAdmin
+                      </span>
+                    )}
+                  </div>
+                  {(isSuperAdmin || organizations.length > 1) && (
+                    <svg className={`w-4 h-4 transition-transform flex-shrink-0 ${showOrgMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  )}
                 </button>
                 
-                {showOrgMenu && organizations.length > 1 && (
+                {showOrgMenu && (isSuperAdmin || organizations.length > 1) && (
                   <div className="absolute mt-2 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
                     {organizations.map((org: any) => (
                       <button
@@ -180,7 +192,14 @@ export default function Sidebar() {
                           org.id === currentOrg.id ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
                         }`}
                       >
-                        {org.name}
+                        <div className="flex items-center justify-between">
+                          <span>{org.name}</span>
+                          {isSuperAdmin && (
+                            <span className="text-xs text-purple-600">
+                              {org.role === 'superadmin' ? 'SuperAdmin' : org.role}
+                            </span>
+                          )}
+                        </div>
                       </button>
                     ))}
                   </div>
