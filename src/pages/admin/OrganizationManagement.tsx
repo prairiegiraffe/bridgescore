@@ -27,6 +27,7 @@ interface User {
   role?: string;
   is_superadmin?: boolean;
   created_at: string;
+  active?: boolean;
 }
 
 export default function OrganizationManagement() {
@@ -51,6 +52,10 @@ export default function OrganizationManagement() {
     secondary_color: '#1E40AF',
     accent_color: '#10B981'
   });
+
+  // User management state
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
 
   useEffect(() => {
     checkSuperAdminAccess();
@@ -152,13 +157,133 @@ export default function OrganizationManagement() {
         full_name: row.full_name,
         role: row.role,
         is_superadmin: row.is_superadmin,
-        created_at: row.created_at
+        created_at: row.created_at,
+        active: true // For now, assume all users are active - we can add this field later
       })) || [];
 
       setSelectedOrgUsers(users);
     } catch (err) {
       console.error('Error fetching organization users:', err);
       setSelectedOrgUsers([]);
+    }
+  };
+
+  // User Management Functions
+  const editUser = (user: User) => {
+    setEditingUser(user);
+    setShowEditUserModal(true);
+  };
+
+  const updateUser = async (userId: string, updates: { full_name?: string; role?: string }) => {
+    try {
+      // Update user profile
+      if (updates.full_name !== undefined) {
+        const { error: profileError } = await (supabase as any)
+          .from('profiles')
+          .upsert({ 
+            id: userId, 
+            full_name: updates.full_name 
+          });
+        if (profileError) throw profileError;
+      }
+
+      // Update membership role
+      if (updates.role !== undefined && selectedOrg) {
+        const { error: roleError } = await (supabase as any)
+          .from('memberships')
+          .update({ role: updates.role })
+          .eq('user_id', userId)
+          .eq('org_id', selectedOrg.id);
+        if (roleError) throw roleError;
+      }
+
+      // Refresh users list
+      if (selectedOrg) {
+        await fetchOrgUsers(selectedOrg.id);
+      }
+
+      setShowEditUserModal(false);
+      setEditingUser(null);
+      alert('User updated successfully!');
+    } catch (err) {
+      console.error('Error updating user:', err);
+      alert(`Failed to update user: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const toggleUserActive = async (user: User) => {
+    const newActiveStatus = !user.active;
+    const action = newActiveStatus ? 'activate' : 'deactivate';
+    
+    if (!confirm(`Are you sure you want to ${action} ${user.email}?`)) {
+      return;
+    }
+
+    try {
+      // For now, we'll simulate this by updating a field or removing/adding membership
+      // In a real implementation, you might have an 'active' field in memberships table
+      
+      if (newActiveStatus) {
+        // Reactivate: ensure membership exists
+        // This is a simplified approach - in real app you'd restore their previous role
+        const { error } = await (supabase as any)
+          .from('memberships')
+          .upsert({
+            user_id: user.id,
+            org_id: selectedOrg?.id,
+            role: user.role || 'member',
+            is_superadmin: user.is_superadmin || false
+          });
+        if (error) throw error;
+      } else {
+        // Deactivate: remove membership (or set active: false if that field exists)
+        const { error } = await (supabase as any)
+          .from('memberships')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('org_id', selectedOrg?.id);
+        if (error) throw error;
+      }
+
+      // Refresh users list
+      if (selectedOrg) {
+        await fetchOrgUsers(selectedOrg.id);
+      }
+
+      alert(`User ${action}d successfully!`);
+    } catch (err) {
+      console.error(`Error ${action}ing user:`, err);
+      alert(`Failed to ${action} user: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const deleteUser = async (user: User) => {
+    if (!confirm(`Are you sure you want to permanently delete ${user.email}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      // Remove membership
+      const { error: membershipError } = await (supabase as any)
+        .from('memberships')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('org_id', selectedOrg?.id);
+      if (membershipError) throw membershipError;
+
+      // Note: We're not deleting the actual user account from auth.users
+      // as that could affect other organizations they belong to
+      // We're just removing them from this organization
+
+      // Refresh users list
+      if (selectedOrg) {
+        await fetchOrgUsers(selectedOrg.id);
+      }
+
+      alert('User removed from organization successfully!');
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      alert(`Failed to delete user: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
@@ -679,7 +804,9 @@ export default function OrganizationManagement() {
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -705,8 +832,46 @@ export default function OrganizationManagement() {
                               </span>
                             </div>
                           </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                              user.active 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {user.active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
                           <td className="px-4 py-3 text-sm text-gray-500">
                             {new Date(user.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => editUser(user)}
+                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                title="Edit user"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => toggleUserActive(user)}
+                                className={`text-sm font-medium ${
+                                  user.active 
+                                    ? 'text-orange-600 hover:text-orange-800' 
+                                    : 'text-green-600 hover:text-green-800'
+                                }`}
+                                title={user.active ? 'Deactivate user' : 'Activate user'}
+                              >
+                                {user.active ? 'Deactivate' : 'Activate'}
+                              </button>
+                              <button
+                                onClick={() => deleteUser(user)}
+                                className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                title="Remove user from organization"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -776,6 +941,94 @@ export default function OrganizationManagement() {
           onClose={() => setShowBrandingModal(false)}
           onUpdate={updateGlobalBranding}
         />
+      )}
+
+      {/* Edit User Modal */}
+      {showEditUserModal && editingUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Edit User</h2>
+            </div>
+            
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const full_name = formData.get('full_name') as string;
+              const role = formData.get('role') as string;
+              updateUser(editingUser.id, { full_name, role });
+            }}>
+              <div className="px-6 py-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <input
+                    type="email"
+                    value={editingUser.email}
+                    disabled
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Full Name</label>
+                  <input
+                    type="text"
+                    name="full_name"
+                    defaultValue={editingUser.full_name || ''}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter full name"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Role</label>
+                  <select
+                    name="role"
+                    defaultValue={editingUser.role || 'member'}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="member">Member</option>
+                    <option value="manager">Manager</option>
+                    <option value="admin">Admin</option>
+                    <option value="owner">Owner</option>
+                  </select>
+                </div>
+
+                {editingUser.is_superadmin && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                    <div className="flex items-center">
+                      <svg className="w-5 h-5 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-sm text-purple-700 font-medium">
+                        This user is a SuperAdmin and has elevated system privileges.
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditUserModal(false);
+                    setEditingUser(null);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                >
+                  Update User
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
