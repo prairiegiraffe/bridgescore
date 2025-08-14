@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { OrgProvider } from './contexts/OrgContext';
 import { BrandingProvider } from './contexts/BrandingContext';
 import Sidebar from './components/Sidebar';
+import TitleUpdater from './components/TitleUpdater';
 import AuthGate from './components/AuthGate';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -22,6 +23,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <TitleUpdater />
       {showSidebar && <Sidebar />}
       <div className={showSidebar ? 'lg:ml-64' : ''}>
           <Routes>
