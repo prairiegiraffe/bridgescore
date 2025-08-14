@@ -100,38 +100,27 @@ export default function Team() {
     };
   }, [memberRole, currentOrg]);
 
-  const checkUserRole = async () => {
+  const checkUserRole = () => {
     if (!user || !currentOrg) return;
 
-    try {
-      const { data, error } = await (supabase as any)
-        .from('memberships')
-        .select('role, is_superadmin')
-        .eq('user_id', user.id)
-        .eq('org_id', currentOrg.id)
-        .single();
-
-      if (error) throw error;
-      
-      const userRole = data?.role || null;
-      const isSuperAdmin = data?.is_superadmin || false;
-      
-      // Check if user has access to Team page (Manager level or SuperAdmin)
-      const allowedRoles = ['manager'];
-      const hasAccess = isSuperAdmin || (userRole && allowedRoles.includes(userRole.toLowerCase()));
-      
-      if (!hasAccess) {
-        console.log('Access denied: User role is', userRole, 'SuperAdmin:', isSuperAdmin);
-        navigate('/dashboard');
-        return;
-      }
-      
-      console.log('Access granted: User role is', userRole, 'SuperAdmin:', isSuperAdmin);
-      setMemberRole(userRole);
-    } catch (err) {
-      console.error('Error checking role:', err);
+    // Get SuperAdmin status and role from currentOrg (set by OrgContext)
+    const isSuperAdmin = currentOrg.is_superadmin || false;
+    const userRole = currentOrg.role || null;
+    
+    console.log('Team: Using global SuperAdmin status:', isSuperAdmin, 'Role:', userRole, 'from currentOrg:', currentOrg.id);
+    
+    // Check if user has access to Team page (Manager level or SuperAdmin)
+    const allowedRoles = ['manager'];
+    const hasAccess = isSuperAdmin || (userRole && allowedRoles.includes(userRole.toLowerCase()));
+    
+    if (!hasAccess) {
+      console.log('Team access denied: User role is', userRole, 'SuperAdmin:', isSuperAdmin);
       navigate('/dashboard');
+      return;
     }
+    
+    console.log('Team access granted: User role is', userRole, 'SuperAdmin:', isSuperAdmin);
+    setMemberRole(userRole);
   };
 
   const fetchTeamPerformanceData = async () => {

@@ -19,6 +19,7 @@ export default function Sidebar() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // SuperAdmin status and role now come directly from OrgContext
+  console.log('Sidebar: Using global SuperAdmin status:', isSuperAdmin, 'Role:', userRole, 'from currentOrg:', currentOrg?.id);
 
   const handleSignOut = async () => {
     await signOut();
