@@ -46,7 +46,7 @@ export default function Team() {
     }
   }, [navigate]);
 
-  // Check user's role
+  // Check user's role and access permissions
   useEffect(() => {
     checkUserRole();
   }, [user, currentOrg]);
@@ -91,15 +91,31 @@ export default function Team() {
     try {
       const { data, error } = await (supabase as any)
         .from('memberships')
-        .select('role')
+        .select('role, is_superadmin')
         .eq('user_id', user.id)
         .eq('org_id', currentOrg.id)
         .single();
 
       if (error) throw error;
-      setMemberRole(data?.role || null);
+      
+      const userRole = data?.role || null;
+      const isSuperAdmin = data?.is_superadmin || false;
+      
+      // Check if user has access to Team page (Manager level or SuperAdmin)
+      const allowedRoles = ['owner', 'admin', 'manager'];
+      const hasAccess = isSuperAdmin || (userRole && allowedRoles.includes(userRole.toLowerCase()));
+      
+      if (!hasAccess) {
+        console.log('Access denied: User role is', userRole, 'SuperAdmin:', isSuperAdmin);
+        navigate('/dashboard');
+        return;
+      }
+      
+      console.log('Access granted: User role is', userRole, 'SuperAdmin:', isSuperAdmin);
+      setMemberRole(userRole);
     } catch (err) {
       console.error('Error checking role:', err);
+      navigate('/dashboard');
     }
   };
 

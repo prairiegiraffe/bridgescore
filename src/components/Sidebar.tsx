@@ -13,6 +13,7 @@ export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [showOrgMenu, setShowOrgMenu] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -24,6 +25,7 @@ export default function Sidebar() {
     if (!user || !currentOrg) {
       console.log('checkSuperAdmin: Missing user or currentOrg', { user: !!user, currentOrg: !!currentOrg });
       setIsSuperAdmin(false);
+      setUserRole(null);
       return;
     }
 
@@ -32,7 +34,7 @@ export default function Sidebar() {
     try {
       const { data, error } = await (supabase as any)
         .from('memberships')
-        .select('is_superadmin')
+        .select('is_superadmin, role')
         .eq('user_id', user.id)
         .eq('org_id', currentOrg.id)
         .single();
@@ -40,15 +42,18 @@ export default function Sidebar() {
       console.log('checkSuperAdmin result:', { data, error });
 
       if (!error && data) {
-        console.log('Setting isSuperAdmin to:', data.is_superadmin);
+        console.log('Setting isSuperAdmin to:', data.is_superadmin, 'role to:', data.role);
         setIsSuperAdmin(data.is_superadmin || false);
+        setUserRole(data.role || null);
       } else {
         console.log('No membership found or error occurred');
         setIsSuperAdmin(false);
+        setUserRole(null);
       }
     } catch (err) {
       console.error('Error checking SuperAdmin status:', err);
       setIsSuperAdmin(false);
+      setUserRole(null);
     }
   };
 
@@ -59,6 +64,12 @@ export default function Sidebar() {
 
   const isActive = (path: string) => {
     return location.pathname === path;
+  };
+
+  const canAccessTeamPage = () => {
+    // Check if user has manager level access or is superadmin
+    const allowedRoles = ['owner', 'admin', 'manager'];
+    return isSuperAdmin || (userRole && allowedRoles.includes(userRole.toLowerCase()));
   };
 
   const navItems = [
@@ -80,7 +91,7 @@ export default function Sidebar() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
       ),
-      show: FLAGS.TEAM_BOARDS
+      show: FLAGS.TEAM_BOARDS && canAccessTeamPage()
     },
     {
       label: 'Resources',
