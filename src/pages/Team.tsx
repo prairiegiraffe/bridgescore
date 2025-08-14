@@ -293,8 +293,9 @@ export default function Team() {
         totalCalls += callsThisMonth;
 
         // Calculate average score
-        const scores = calls?.map((call: any) => call.total_score || 0) || [];
+        const scores = calls?.map((call: any) => call.score_total || 0) || [];
         const avgScore = scores.length > 0 ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : 0;
+        console.log('Team: Member', member.email, 'has', calls?.length, 'calls with scores:', scores, 'avg:', avgScore);
         totalScore += avgScore;
 
         // Calculate close rate (assuming calls have a 'closed' boolean field)
@@ -344,6 +345,7 @@ export default function Team() {
       // Calculate team metrics
       const teamAvgScore = memberCount > 0 ? totalScore / memberCount : 0;
       const teamCloseRate = memberCount > 0 ? totalCloseRate / memberCount : 0;
+      console.log('Team: Total score:', totalScore, 'Member count:', memberCount, 'Team avg:', teamAvgScore);
 
       const teamMetrics: TeamMetrics = {
         average_score: Math.round(teamAvgScore * 10) / 10,
