@@ -58,6 +58,33 @@ export default function Team() {
     }
   }, [memberRole, currentOrg]);
 
+  // Refresh data when page comes into focus (when user returns from Organization Management)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (memberRole && currentOrg) {
+        console.log('Team page focused - refreshing data');
+        fetchTeamPerformanceData();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    
+    // Also listen for visibility change (when switching browser tabs)
+    const handleVisibilityChange = () => {
+      if (!document.hidden && memberRole && currentOrg) {
+        console.log('Team page visible - refreshing data');
+        fetchTeamPerformanceData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [memberRole, currentOrg]);
+
   const checkUserRole = async () => {
     if (!user || !currentOrg) return;
 
@@ -341,16 +368,30 @@ export default function Team() {
             <h1 className="text-3xl font-bold text-gray-900">Team Performance Dashboard</h1>
             <p className="text-gray-500 mt-1">Monitor and analyze team performance for {currentOrg?.name}</p>
           </div>
-          {teamMetrics?.isDemo && (
-            <div className="bg-blue-100 border border-blue-300 rounded-lg px-4 py-2">
-              <span className="text-sm font-medium text-blue-800">Demo Mode</span>
-            </div>
-          )}
-          {teamMetrics && !teamMetrics.isDemo && (
-            <div className="bg-green-100 border border-green-300 rounded-lg px-4 py-2">
-              <span className="text-sm font-medium text-green-800">Live Data</span>
-            </div>
-          )}
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => {
+                console.log('Manual refresh triggered');
+                fetchTeamPerformanceData();
+              }}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
+            {teamMetrics?.isDemo && (
+              <div className="bg-blue-100 border border-blue-300 rounded-lg px-4 py-2">
+                <span className="text-sm font-medium text-blue-800">Demo Mode</span>
+              </div>
+            )}
+            {teamMetrics && !teamMetrics.isDemo && (
+              <div className="bg-green-100 border border-green-300 rounded-lg px-4 py-2">
+                <span className="text-sm font-medium text-green-800">Live Data</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
