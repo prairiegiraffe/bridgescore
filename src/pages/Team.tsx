@@ -217,25 +217,25 @@ export default function Team() {
         totalCalls += callsThisMonth;
 
         // Calculate average score
-        const scores = calls?.map(call => call.total_score || 0) || [];
-        const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+        const scores = calls?.map((call: any) => call.total_score || 0) || [];
+        const avgScore = scores.length > 0 ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : 0;
         totalScore += avgScore;
 
         // Calculate close rate (assuming calls have a 'closed' boolean field)
-        const closedCalls = calls?.filter(call => call.closed === true) || [];
+        const closedCalls = calls?.filter((call: any) => call.closed === true) || [];
         const closeRate = callsThisMonth > 0 ? (closedCalls.length / callsThisMonth) * 100 : 0;
         totalCloseRate += closeRate;
 
         // Get last call date
         const lastCallDate = calls && calls.length > 0 
-          ? calls.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0].created_at
+          ? calls.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0].created_at
           : new Date().toISOString();
 
         // Calculate trend (simplified - comparing last week vs previous week)
-        const lastWeekCalls = calls?.filter(call => 
+        const lastWeekCalls = calls?.filter((call: any) => 
           new Date(call.created_at) >= new Date(new Date().setDate(new Date().getDate() - 7))
         ) || [];
-        const prevWeekCalls = calls?.filter(call => {
+        const prevWeekCalls = calls?.filter((call: any) => {
           const callDate = new Date(call.created_at);
           const weekAgo = new Date(new Date().setDate(new Date().getDate() - 7));
           const twoWeeksAgo = new Date(new Date().setDate(new Date().getDate() - 14));
