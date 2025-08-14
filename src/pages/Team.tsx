@@ -298,9 +298,10 @@ export default function Team() {
         console.log('Team: Member', member.email, 'has', calls?.length, 'calls with scores:', scores, 'avg:', avgScore);
         totalScore += avgScore;
 
-        // Calculate close rate (assuming calls have a 'closed' boolean field)
-        const closedCalls = calls?.filter((call: any) => call.closed === true) || [];
+        // Calculate close rate (calls with score >= 16 out of 20, which is 80%+)
+        const closedCalls = calls?.filter((call: any) => (call.score_total || 0) >= 16) || [];
         const closeRate = callsThisMonth > 0 ? (closedCalls.length / callsThisMonth) * 100 : 0;
+        console.log('Team: Member', member.email, 'close rate:', closedCalls.length, '/', callsThisMonth, '=', Math.round(closeRate) + '%');
         totalCloseRate += closeRate;
 
         // Get last call date
@@ -346,6 +347,7 @@ export default function Team() {
       const teamAvgScore = memberCount > 0 ? totalScore / memberCount : 0;
       const teamCloseRate = memberCount > 0 ? totalCloseRate / memberCount : 0;
       console.log('Team: Total score:', totalScore, 'Member count:', memberCount, 'Team avg:', teamAvgScore);
+      console.log('Team: Total close rate:', totalCloseRate, 'Member count:', memberCount, 'Team close rate:', Math.round(teamCloseRate) + '%');
 
       const teamMetrics: TeamMetrics = {
         average_score: Math.round(teamAvgScore * 10) / 10,
