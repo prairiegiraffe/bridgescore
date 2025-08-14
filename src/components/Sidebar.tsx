@@ -68,7 +68,7 @@ export default function Sidebar() {
 
   const canAccessTeamPage = () => {
     // Check if user has manager level access or is superadmin
-    const allowedRoles = ['owner', 'admin', 'manager'];
+    const allowedRoles = ['manager'];
     return isSuperAdmin || (userRole && allowedRoles.includes(userRole.toLowerCase()));
   };
 

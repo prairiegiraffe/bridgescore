@@ -1040,10 +1040,8 @@ export default function OrganizationManagement() {
                     defaultValue={editingUser.role || 'member'}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="member">Member</option>
-                    <option value="manager">Manager</option>
-                    <option value="admin">Admin</option>
-                    <option value="owner">Owner</option>
+                    <option value="member">Member (Sales Staff)</option>
+                    <option value="manager">Manager (Organization Admin)</option>
                   </select>
                 </div>
 

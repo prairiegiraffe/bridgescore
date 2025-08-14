@@ -117,7 +117,7 @@ export default function Team() {
       const isSuperAdmin = data?.is_superadmin || false;
       
       // Check if user has access to Team page (Manager level or SuperAdmin)
-      const allowedRoles = ['owner', 'admin', 'manager'];
+      const allowedRoles = ['manager'];
       const hasAccess = isSuperAdmin || (userRole && allowedRoles.includes(userRole.toLowerCase()));
       
       if (!hasAccess) {
@@ -404,8 +404,8 @@ export default function Team() {
   };
 
   const canManageRoles = () => {
-    // Check if user can manage roles (manager level or above)
-    const allowedRoles = ['owner', 'admin', 'manager'];
+    // Check if user can manage roles (manager level or SuperAdmin)
+    const allowedRoles = ['manager'];
     return memberRole && (allowedRoles.includes(memberRole.toLowerCase()) || memberRole === 'superadmin');
   };
 
@@ -764,7 +764,7 @@ export default function Team() {
                         <option value="manager">Manager</option>
                       </select>
                       <span className="text-sm text-gray-500">
-                        {(memberDbRole === 'manager' || memberDbRole === 'admin' || memberDbRole === 'owner') 
+                        {memberDbRole === 'manager' 
                           ? 'Can access Team page' 
                           : 'Dashboard access only'
                         }
