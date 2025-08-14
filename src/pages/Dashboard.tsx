@@ -183,6 +183,7 @@ export default function Dashboard() {
       const { data, error } = await query;
 
       if (error) throw error;
+      console.log('Dashboard: Query returned', data?.length || 0, 'calls for SuperAdmin:', isSuperAdmin, 'in org:', currentOrg?.id);
       setRecentCalls(data || []);
     } catch (err) {
       console.error('Error fetching calls:', err);

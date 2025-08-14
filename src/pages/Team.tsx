@@ -404,6 +404,7 @@ export default function Team() {
     
     try {
       // Fetch member's calls
+      console.log('Team: Fetching calls for member:', member.id, 'in org:', currentOrg?.id);
       const { data: calls, error: callsError } = await (supabase as any)
         .from('calls')
         .select('id, title, score_total, created_at, flagged_for_review, flag_reason')
@@ -412,7 +413,12 @@ export default function Team() {
         .order('created_at', { ascending: false })
         .limit(20);
 
-      if (callsError) throw callsError;
+      if (callsError) {
+        console.error('Team: Error fetching member calls:', callsError);
+        throw callsError;
+      }
+      
+      console.log('Team: Found', calls?.length || 0, 'calls for member:', member.email);
       setMemberCalls(calls || []);
 
       // Fetch member's current role from database
