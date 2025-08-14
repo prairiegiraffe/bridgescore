@@ -196,7 +196,7 @@ export default function Dashboard() {
           if (!debugError) {
             console.log('Dashboard DEBUG: Total calls in org', currentOrg.id, ':', allOrgCalls?.length || 0);
             if (allOrgCalls && allOrgCalls.length > 0) {
-              console.log('Dashboard DEBUG: Call user_ids:', allOrgCalls.map(c => c.user_id));
+              console.log('Dashboard DEBUG: Call user_ids:', allOrgCalls.map((c: any) => c.user_id));
             }
           }
         } catch (debugErr) {
