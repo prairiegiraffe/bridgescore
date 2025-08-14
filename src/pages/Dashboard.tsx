@@ -184,6 +184,26 @@ export default function Dashboard() {
 
       if (error) throw error;
       console.log('Dashboard: Query returned', data?.length || 0, 'calls for SuperAdmin:', isSuperAdmin, 'in org:', currentOrg?.id);
+      
+      // Debug: Also check how many calls exist in total for this org (ignoring user filtering)
+      if (isSuperAdmin && currentOrg) {
+        try {
+          const { data: allOrgCalls, error: debugError } = await (supabase as any)
+            .from('calls')
+            .select('id, user_id')
+            .eq('org_id', currentOrg.id);
+            
+          if (!debugError) {
+            console.log('Dashboard DEBUG: Total calls in org', currentOrg.id, ':', allOrgCalls?.length || 0);
+            if (allOrgCalls && allOrgCalls.length > 0) {
+              console.log('Dashboard DEBUG: Call user_ids:', allOrgCalls.map(c => c.user_id));
+            }
+          }
+        } catch (debugErr) {
+          console.log('Dashboard DEBUG: Error checking all org calls:', debugErr);
+        }
+      }
+      
       setRecentCalls(data || []);
     } catch (err) {
       console.error('Error fetching calls:', err);
