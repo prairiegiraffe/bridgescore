@@ -46,7 +46,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       setError(null);
 
       // First check if user is SuperAdmin
-      const { data: superAdminCheck, error: superAdminError } = await (supabase as any)
+      const { data: superAdminCheck } = await (supabase as any)
         .from('memberships')
         .select('is_superadmin')
         .eq('user_id', user?.id)
@@ -71,7 +71,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
           .select('org_id, role, is_superadmin')
           .eq('user_id', user?.id);
 
-        const membershipMap = new Map(
+        const membershipMap = new Map<string, { role: string; is_superadmin: boolean }>(
           userMemberships?.map((m: any) => [m.org_id, { role: m.role, is_superadmin: m.is_superadmin }]) || []
         );
 

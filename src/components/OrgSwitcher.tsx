@@ -55,7 +55,7 @@ export default function OrgSwitcher() {
                   <div className="flex flex-col items-start">
                     <span className="font-medium">{org.name}</span>
                     <span className="text-xs text-gray-500 capitalize">
-                      {org.role} {org.is_demo ? '(Demo)' : ''}
+                      {org.role} {org.demo_mode ? '(Demo)' : ''}
                     </span>
                   </div>
                   {currentOrg?.id === org.id && (
