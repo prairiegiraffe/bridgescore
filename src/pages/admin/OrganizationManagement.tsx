@@ -98,17 +98,37 @@ export default function OrganizationManagement() {
   const fetchOrganizations = async () => {
     setLoading(true);
     try {
-      const { data, error } = await (supabase as any)
+      // First fetch from organization_details view for most data
+      const { data: orgDetails, error: detailsError } = await (supabase as any)
         .from('organization_details')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setOrganizations(data || []);
+      if (detailsError) throw detailsError;
       
-      // Auto-select first organization
-      if (data && data.length > 0 && !selectedOrg) {
-        setSelectedOrg(data[0]);
+      // Then fetch demo_mode from organizations table directly
+      const { data: orgSettings, error: settingsError } = await (supabase as any)
+        .from('organizations')
+        .select('id, demo_mode');
+      
+      if (settingsError) throw settingsError;
+      
+      // Merge the demo_mode into the organization details
+      const mergedData = orgDetails?.map((org: any) => {
+        const settings = orgSettings?.find((s: any) => s.id === org.id);
+        return { ...org, demo_mode: settings?.demo_mode || false };
+      }) || [];
+      
+      setOrganizations(mergedData);
+      
+      // Update selected org if it exists
+      if (selectedOrg && mergedData.length > 0) {
+        const updatedSelectedOrg = mergedData.find((org: any) => org.id === selectedOrg.id);
+        if (updatedSelectedOrg) {
+          setSelectedOrg(updatedSelectedOrg);
+        }
+      } else if (mergedData.length > 0 && !selectedOrg) {
+        setSelectedOrg(mergedData[0]);
       }
     } catch (err) {
       console.error('Error fetching organizations:', err);
@@ -250,8 +270,13 @@ export default function OrganizationManagement() {
 
       if (error) throw error;
       
+      // Update the selected org in state immediately for UI feedback
+      setSelectedOrg({ ...selectedOrg, demo_mode: enabled });
+      
+      // Then fetch fresh data from database
       await fetchOrganizations();
-      alert(`Demo mode ${enabled ? 'enabled' : 'disabled'} successfully!`);
+      
+      alert(`Demo mode ${enabled ? 'enabled' : 'disabled'} successfully for ${selectedOrg.name}!`);
     } catch (err) {
       console.error('Error updating demo mode:', err);
       alert(`Failed to update demo mode: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -594,7 +619,7 @@ export default function OrganizationManagement() {
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">Team Dashboard Settings</h3>
-                    <p className="text-sm text-gray-500">Configure how team performance data is displayed</p>
+                    <p className="text-sm text-gray-500">Configure how team performance data is displayed for {selectedOrg.name}</p>
                   </div>
                 </div>
                 
