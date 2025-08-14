@@ -775,7 +775,15 @@ export default function Team() {
 
                 {/* Recent Calls */}
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-3">Recent Calls ({memberCalls.length})</h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-medium text-gray-900">Recent Calls ({memberCalls.length})</h3>
+                    <span className="text-sm text-gray-500 flex items-center">
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                      </svg>
+                      Click any call to view details
+                    </span>
+                  </div>
                   {memberCalls.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
@@ -789,9 +797,21 @@ export default function Team() {
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {memberCalls.map((call) => (
-                            <tr key={call.id}>
+                            <tr 
+                              key={call.id}
+                              onClick={() => navigate(`/calls/${call.id}`)}
+                              className="cursor-pointer hover:bg-gray-50 transition-colors"
+                              title="Click to view call details"
+                            >
                               <td className="px-4 py-4 text-sm text-gray-900">
-                                {call.title || 'Untitled Call'}
+                                <div className="flex items-center">
+                                  <span className="text-blue-600 hover:text-blue-800">
+                                    {call.title || 'Untitled Call'}
+                                  </span>
+                                  <svg className="w-4 h-4 ml-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                </div>
                               </td>
                               <td className="px-4 py-4 text-sm">
                                 <span className={`font-semibold ${
