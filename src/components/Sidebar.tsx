@@ -3,8 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 import { useBranding } from '../contexts/BrandingContext';
 import { FLAGS } from '../lib/flags';
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { useState } from 'react';
 
 export default function Sidebar() {
   const { user, signOut } = useAuth();
