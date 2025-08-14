@@ -756,18 +756,18 @@ export default function Team() {
                     <div className="flex items-center space-x-4">
                       <label className="text-sm font-medium text-gray-700">Current Role:</label>
                       <select
-                        value={memberDbRole}
+                        value={memberDbRole === 'admin' || memberDbRole === 'owner' ? 'manager' : memberDbRole}
                         onChange={(e) => updateMemberRole(e.target.value)}
                         className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="member">Member</option>
                         <option value="manager">Manager</option>
-                        {(memberRole === 'owner' || memberRole === 'admin') && (
-                          <option value="admin">Admin</option>
-                        )}
                       </select>
                       <span className="text-sm text-gray-500">
-                        {memberDbRole === 'manager' ? 'Can access Team page' : 'Dashboard access only'}
+                        {(memberDbRole === 'manager' || memberDbRole === 'admin' || memberDbRole === 'owner') 
+                          ? 'Can access Team page' 
+                          : 'Dashboard access only'
+                        }
                       </span>
                     </div>
                   </div>
