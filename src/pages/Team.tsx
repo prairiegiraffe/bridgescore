@@ -213,21 +213,41 @@ export default function Team() {
     if (!currentOrg) return;
 
     try {
-      // Fetch team members with their call stats
-      const { data: members, error: membersError } = await (supabase as any)
+      // Fetch team members from memberships
+      const { data: memberships, error: membersError } = await (supabase as any)
         .from('memberships')
-        .select(`
-          user_id,
-          role,
-          users!inner (
-            id,
-            email,
-            full_name
-          )
-        `)
+        .select('user_id, role')
         .eq('org_id', currentOrg.id);
 
       if (membersError) throw membersError;
+
+      // Get user details separately
+      const userIds = memberships?.map(m => m.user_id) || [];
+      const { data: users, error: usersError } = await (supabase as any)
+        .from('auth.users')
+        .select('id, email, raw_user_meta_data')
+        .in('id', userIds);
+
+      // If auth.users is not accessible, try profiles table
+      let userDetails = users;
+      if (usersError || !users) {
+        const { data: profiles } = await (supabase as any)
+          .from('profiles')
+          .select('id, email, full_name')
+          .in('id', userIds);
+        userDetails = profiles;
+      }
+
+      // Combine memberships with user details
+      const members = memberships?.map(membership => {
+        const user = userDetails?.find(u => u.id === membership.user_id);
+        return {
+          user_id: membership.user_id,
+          role: membership.role,
+          email: user?.email || 'Unknown',
+          full_name: user?.raw_user_meta_data?.full_name || user?.full_name || null
+        };
+      }) || [];
 
       // Get call data for each member
       const teamMembersData: TeamMember[] = [];
@@ -287,8 +307,8 @@ export default function Team() {
 
         teamMembersData.push({
           id: member.user_id,
-          email: member.users.email,
-          name: member.users.full_name || undefined,
+          email: member.email,
+          name: member.full_name || undefined,
           role: member.role || 'Member',
           avg_score: Math.round(avgScore * 10) / 10,
           calls_this_month: callsThisMonth,
