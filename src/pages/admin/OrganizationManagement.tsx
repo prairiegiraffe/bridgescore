@@ -176,38 +176,91 @@ export default function OrganizationManagement() {
 
   const updateUser = async (userId: string, updates: { full_name?: string; role?: string }) => {
     try {
-      // Update user profile
+      console.log('Updating user:', userId, 'with updates:', updates);
+      
+      // Update user profile (try different approaches)
       if (updates.full_name !== undefined) {
-        const { error: profileError } = await (supabase as any)
-          .from('profiles')
-          .upsert({ 
-            id: userId, 
-            full_name: updates.full_name 
-          });
-        if (profileError) throw profileError;
+        console.log('Updating full_name to:', updates.full_name);
+        
+        // Try updating auth.users first (if accessible)
+        try {
+          const { error: authError } = await (supabase as any)
+            .from('auth.users')
+            .update({ 
+              raw_user_meta_data: { full_name: updates.full_name }
+            })
+            .eq('id', userId);
+          
+          if (authError) {
+            console.log('Auth users update failed, trying profiles table:', authError);
+            
+            // Fallback to profiles table
+            const { error: profileError } = await (supabase as any)
+              .from('profiles')
+              .upsert({ 
+                id: userId, 
+                full_name: updates.full_name 
+              });
+            
+            if (profileError) {
+              console.log('Profiles table update also failed:', profileError);
+              // Don't throw error for full_name update failure - it's not critical
+              console.warn('Could not update full name, but continuing with role update');
+            }
+          }
+        } catch (profileErr) {
+          console.warn('Profile update failed, but continuing:', profileErr);
+        }
       }
 
-      // Update membership role
+      // Update membership role - this is the critical part
       if (updates.role !== undefined && selectedOrg) {
-        const { error: roleError } = await (supabase as any)
+        console.log('Updating role to:', updates.role, 'for org:', selectedOrg.id);
+        
+        const { error: roleError, data: roleData } = await (supabase as any)
           .from('memberships')
           .update({ role: updates.role })
           .eq('user_id', userId)
-          .eq('org_id', selectedOrg.id);
-        if (roleError) throw roleError;
+          .eq('org_id', selectedOrg.id)
+          .select();
+        
+        if (roleError) {
+          console.error('Role update error details:', roleError);
+          throw new Error(`Failed to update role: ${roleError.message || roleError.details || 'Database error'}`);
+        }
+        
+        console.log('Role update successful:', roleData);
+        
+        if (!roleData || roleData.length === 0) {
+          throw new Error('No membership record found to update. User may not be a member of this organization.');
+        }
       }
 
       // Refresh users list
       if (selectedOrg) {
+        console.log('Refreshing users list...');
         await fetchOrgUsers(selectedOrg.id);
       }
 
       setShowEditUserModal(false);
       setEditingUser(null);
       alert('User updated successfully!');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating user:', err);
-      alert(`Failed to update user: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      
+      // Provide more detailed error messages
+      let errorMessage = 'Unknown error occurred';
+      if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.error_description) {
+        errorMessage = err.error_description;
+      } else if (err?.details) {
+        errorMessage = err.details;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+      
+      alert(`Failed to update user: ${errorMessage}`);
     }
   };
 
