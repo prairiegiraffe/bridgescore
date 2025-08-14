@@ -12,50 +12,13 @@ export default function Sidebar() {
   const { branding } = useBranding();
   const location = useLocation();
   const navigate = useNavigate();
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  // Get SuperAdmin status and role from currentOrg (set by OrgContext)
+  const isSuperAdmin = currentOrg?.is_superadmin || false;
+  const userRole = currentOrg?.role || null;
   const [showOrgMenu, setShowOrgMenu] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  useEffect(() => {
-    checkSuperAdmin();
-  }, [user, currentOrg]);
-
-  const checkSuperAdmin = async () => {
-    if (!user || !currentOrg) {
-      console.log('checkSuperAdmin: Missing user or currentOrg', { user: !!user, currentOrg: !!currentOrg });
-      setIsSuperAdmin(false);
-      setUserRole(null);
-      return;
-    }
-
-    console.log('checkSuperAdmin: Checking for user', user.id, 'in org', currentOrg.id);
-
-    try {
-      const { data, error } = await (supabase as any)
-        .from('memberships')
-        .select('is_superadmin, role')
-        .eq('user_id', user.id)
-        .eq('org_id', currentOrg.id)
-        .single();
-
-      console.log('checkSuperAdmin result:', { data, error });
-
-      if (!error && data) {
-        console.log('Setting isSuperAdmin to:', data.is_superadmin, 'role to:', data.role);
-        setIsSuperAdmin(data.is_superadmin || false);
-        setUserRole(data.role || null);
-      } else {
-        console.log('No membership found or error occurred');
-        setIsSuperAdmin(false);
-        setUserRole(null);
-      }
-    } catch (err) {
-      console.error('Error checking SuperAdmin status:', err);
-      setIsSuperAdmin(false);
-      setUserRole(null);
-    }
-  };
+  // SuperAdmin status and role now come directly from OrgContext
 
   const handleSignOut = async () => {
     await signOut();
