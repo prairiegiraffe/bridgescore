@@ -26,6 +26,7 @@ interface TeamMetrics {
   score_trend: number[];
   calls_trend: number[];
   top_performers: TeamMember[];
+  isDemo?: boolean;
 }
 
 export default function Team() {
@@ -87,13 +88,20 @@ export default function Team() {
         .eq('id', currentOrg.id)
         .single();
 
-      if (orgError) throw orgError;
+      if (orgError) {
+        console.error('Error fetching org demo_mode:', orgError);
+        throw orgError;
+      }
 
-      if (orgData?.demo_mode) {
+      console.log('Organization demo_mode status:', orgData?.demo_mode, 'for org:', currentOrg.name);
+
+      if (orgData?.demo_mode === true) {
         // Use mock data for demo mode
+        console.log('Using demo data for team dashboard');
         await fetchDemoData();
       } else {
         // Fetch live data from database
+        console.log('Using live data for team dashboard');
         await fetchLiveData();
       }
     } catch (err) {
@@ -166,7 +174,8 @@ export default function Team() {
         month_growth: 18,
         score_trend: [15.2, 15.8, 16.1, 16.2],
         calls_trend: [98, 112, 119, 127],
-        top_performers: mockTeamMembers.sort((a, b) => b.avg_score - a.avg_score).slice(0, 3)
+        top_performers: mockTeamMembers.sort((a, b) => b.avg_score - a.avg_score).slice(0, 3),
+        isDemo: true
       };
 
       setTeamMembers(mockTeamMembers);
@@ -276,7 +285,8 @@ export default function Team() {
         month_growth: Math.floor(Math.random() * 30) + 10, // Simplified growth calculation
         score_trend: [teamAvgScore * 0.8, teamAvgScore * 0.9, teamAvgScore * 0.95, teamAvgScore].map(s => Math.round(s * 10) / 10),
         calls_trend: [totalCalls * 0.7, totalCalls * 0.8, totalCalls * 0.9, totalCalls].map(Math.floor),
-        top_performers: teamMembersData.sort((a, b) => b.avg_score - a.avg_score).slice(0, 3)
+        top_performers: teamMembersData.sort((a, b) => b.avg_score - a.avg_score).slice(0, 3),
+        isDemo: false
       };
 
       setTeamMembers(teamMembersData);
@@ -326,8 +336,22 @@ export default function Team() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-6 lg:py-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Team Performance Dashboard</h1>
-        <p className="text-gray-500 mt-1">Monitor and analyze team performance for {currentOrg?.name}</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Team Performance Dashboard</h1>
+            <p className="text-gray-500 mt-1">Monitor and analyze team performance for {currentOrg?.name}</p>
+          </div>
+          {teamMetrics?.isDemo && (
+            <div className="bg-blue-100 border border-blue-300 rounded-lg px-4 py-2">
+              <span className="text-sm font-medium text-blue-800">Demo Mode</span>
+            </div>
+          )}
+          {teamMetrics && !teamMetrics.isDemo && (
+            <div className="bg-green-100 border border-green-300 rounded-lg px-4 py-2">
+              <span className="text-sm font-medium text-green-800">Live Data</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Key Metrics Cards */}
