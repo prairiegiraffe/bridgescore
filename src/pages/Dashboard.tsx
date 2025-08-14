@@ -82,6 +82,9 @@ export default function Dashboard() {
   
   const { user } = useAuth();
   const { currentOrg } = useOrg();
+  
+  // State to track if user is SuperAdmin
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const navigate = useNavigate();
 
   // Get current filters from URL
@@ -95,11 +98,16 @@ export default function Dashboard() {
     framework: searchParams.get('framework') || undefined,
   };
 
-  // Fetch recent calls when user, org, or filters change
+  // Check SuperAdmin status when user or org changes
+  useEffect(() => {
+    checkSuperAdminStatus();
+  }, [user, currentOrg]);
+
+  // Fetch recent calls when user, org, filters, or SuperAdmin status change
   useEffect(() => {
     fetchRecentCalls();
     fetchUserStats();
-  }, [user, currentOrg, searchParams]);
+  }, [user, currentOrg, searchParams, isSuperAdmin]);
 
   // Load filter data
   useEffect(() => {
@@ -107,6 +115,33 @@ export default function Dashboard() {
       loadFilterData();
     }
   }, [currentOrg]);
+
+  const checkSuperAdminStatus = async () => {
+    if (!user || !currentOrg) {
+      setIsSuperAdmin(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await (supabase as any)
+        .from('memberships')
+        .select('is_superadmin')
+        .eq('user_id', user.id)
+        .eq('org_id', currentOrg.id)
+        .single();
+
+      if (!error && data) {
+        console.log('Dashboard: User SuperAdmin status:', data.is_superadmin);
+        setIsSuperAdmin(data.is_superadmin || false);
+      } else {
+        console.log('Dashboard: No membership found or error, setting SuperAdmin to false');
+        setIsSuperAdmin(false);
+      }
+    } catch (err) {
+      console.error('Error checking SuperAdmin status:', err);
+      setIsSuperAdmin(false);
+    }
+  };
 
   const fetchRecentCalls = async () => {
     if (!user) return;
@@ -133,7 +168,15 @@ export default function Dashboard() {
 
       // Base org/user filtering
       if (FLAGS.ORGS && currentOrg) {
-        query = query.eq('org_id', currentOrg.id);
+        // SuperAdmins can see all calls in the org
+        if (isSuperAdmin) {
+          console.log('Dashboard: Fetching ALL calls for SuperAdmin in org:', currentOrg.id);
+          query = query.eq('org_id', currentOrg.id);
+        } else {
+          console.log('Dashboard: Fetching user calls only for org:', currentOrg.id, 'user:', user.id);
+          // Regular users only see their own calls  
+          query = query.eq('org_id', currentOrg.id).eq('user_id', user.id);
+        }
       } else if (FLAGS.ORGS) {
         query = query.eq('user_id', user.id);
       } else {
@@ -195,7 +238,12 @@ export default function Dashboard() {
       
       // Filter by org or user
       if (FLAGS.ORGS && currentOrg) {
-        statsQuery = statsQuery.eq('org_id', currentOrg.id).eq('user_id', user.id);
+        // SuperAdmins see org-wide stats, regular users see only their own
+        if (isSuperAdmin) {
+          statsQuery = statsQuery.eq('org_id', currentOrg.id);
+        } else {
+          statsQuery = statsQuery.eq('org_id', currentOrg.id).eq('user_id', user.id);
+        }
       } else {
         statsQuery = statsQuery.eq('user_id', user.id);
       }
