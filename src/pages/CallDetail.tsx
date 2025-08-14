@@ -75,7 +75,7 @@ export default function CallDetail() {
 
   // Fetch assistant versions when needed
   useEffect(() => {
-    if (showRescoreMenu && currentOrg && (memberRole === 'owner' || memberRole === 'admin')) {
+    if (showRescoreMenu && currentOrg && (memberRole === 'manager' || memberRole === 'superadmin')) {
       fetchAssistantVersions();
     }
   }, [showRescoreMenu, currentOrg, memberRole]);
@@ -92,21 +92,20 @@ export default function CallDetail() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showRescoreMenu]);
 
-  const checkUserRole = async () => {
+  const checkUserRole = () => {
     if (!user || !currentOrg) return;
 
-    try {
-      const { data, error } = await (supabase as any)
-        .from('memberships')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('org_id', currentOrg.id)
-        .single();
-
-      if (error) throw error;
-      setMemberRole(data?.role || null);
-    } catch (err) {
-      console.error('Error checking role:', err);
+    // Get SuperAdmin status and role from currentOrg (set by OrgContext)
+    const isSuperAdmin = currentOrg.is_superadmin || false;
+    const userRole = currentOrg.role || null;
+    
+    console.log('CallDetail: Using global SuperAdmin status:', isSuperAdmin, 'Role:', userRole, 'from currentOrg:', currentOrg.id);
+    
+    // For call management, treat SuperAdmins as having manager access
+    if (isSuperAdmin) {
+      setMemberRole('superadmin');
+    } else {
+      setMemberRole(userRole);
     }
   };
 
@@ -269,7 +268,7 @@ export default function CallDetail() {
   };
 
   const handleRescore = async (assistantVersionId: string) => {
-    if (!call || !currentOrg || !user || memberRole !== 'owner' && memberRole !== 'admin') return;
+    if (!call || !currentOrg || !user || (memberRole !== 'manager' && memberRole !== 'superadmin')) return;
 
     setRescoring(true);
     try {
@@ -470,7 +469,7 @@ export default function CallDetail() {
               {call.score_total}/20
             </div>
             {/* Admin Actions */}
-            {(memberRole === 'owner' || memberRole === 'admin') && (
+            {(memberRole === 'manager' || memberRole === 'superadmin') && (
               <div className="flex space-x-2">
                 {(FLAGS.RESCORE_WITH_VERSION || true) && (
                   <button
