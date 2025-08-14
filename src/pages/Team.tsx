@@ -18,6 +18,15 @@ interface TeamMember {
   monthly_scores: number[];
 }
 
+interface Call {
+  id: string;
+  title: string;
+  score_total: number;
+  created_at: string;
+  flagged_for_review: boolean;
+  flag_reason?: string;
+}
+
 interface TeamMetrics {
   average_score: number;
   total_calls_month: number;
@@ -38,6 +47,12 @@ export default function Team() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [memberRole, setMemberRole] = useState<string | null>(null);
+  
+  // Modal state
+  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+  const [memberCalls, setMemberCalls] = useState<Call[]>([]);
+  const [memberModalLoading, setMemberModalLoading] = useState(false);
+  const [memberDbRole, setMemberDbRole] = useState<string>('member');
 
   // Check if feature is enabled
   useEffect(() => {
@@ -388,6 +403,86 @@ export default function Team() {
     }
   };
 
+  const canManageRoles = () => {
+    // Check if user can manage roles (manager level or above)
+    const allowedRoles = ['owner', 'admin', 'manager'];
+    return memberRole && (allowedRoles.includes(memberRole.toLowerCase()) || memberRole === 'superadmin');
+  };
+
+  const openMemberModal = async (member: TeamMember) => {
+    setSelectedMember(member);
+    setMemberModalLoading(true);
+    
+    try {
+      // Fetch member's calls
+      const { data: calls, error: callsError } = await (supabase as any)
+        .from('calls')
+        .select('id, title, score_total, created_at, flagged_for_review, flag_reason')
+        .eq('user_id', member.id)
+        .eq('org_id', currentOrg?.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (callsError) throw callsError;
+      setMemberCalls(calls || []);
+
+      // Fetch member's current role from database
+      const { data: membershipData, error: membershipError } = await (supabase as any)
+        .from('memberships')
+        .select('role')
+        .eq('user_id', member.id)
+        .eq('org_id', currentOrg?.id)
+        .single();
+
+      if (membershipError) throw membershipError;
+      setMemberDbRole(membershipData?.role || 'member');
+      
+    } catch (err) {
+      console.error('Error fetching member data:', err);
+      setMemberCalls([]);
+      setMemberDbRole('member');
+    } finally {
+      setMemberModalLoading(false);
+    }
+  };
+
+  const updateMemberRole = async (newRole: string) => {
+    if (!selectedMember || !currentOrg) return;
+
+    try {
+      const { error } = await (supabase as any)
+        .from('memberships')
+        .update({ role: newRole })
+        .eq('user_id', selectedMember.id)
+        .eq('org_id', currentOrg.id);
+
+      if (error) throw error;
+
+      setMemberDbRole(newRole);
+      
+      // Update the team member in the local state
+      setTeamMembers(prevMembers => 
+        prevMembers.map(member => 
+          member.id === selectedMember.id 
+            ? { ...member, role: newRole }
+            : member
+        )
+      );
+
+      alert(`Successfully updated ${selectedMember.name || selectedMember.email}'s role to ${newRole}`);
+      
+    } catch (err) {
+      console.error('Error updating member role:', err);
+      alert(`Failed to update role: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const closeMemberModal = () => {
+    setSelectedMember(null);
+    setMemberCalls([]);
+    setMemberDbRole('member');
+  };
+
   if (loading || !teamMetrics) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-6 lg:py-6">
@@ -587,7 +682,12 @@ export default function Team() {
                     {formatTimeAgo(member.last_call_date)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <button className="text-blue-600 hover:text-blue-800">View</button>
+                    <button 
+                      onClick={() => openMemberModal(member)}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      View
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -595,6 +695,155 @@ export default function Team() {
           </table>
         </div>
       </div>
+
+      {/* Member Detail Modal */}
+      {selectedMember && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {selectedMember.name || selectedMember.email.split('@')[0]}
+                </h2>
+                <p className="text-sm text-gray-500">{selectedMember.email}</p>
+              </div>
+              <button
+                onClick={closeMemberModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {memberModalLoading ? (
+              <div className="px-6 py-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-2 text-gray-500">Loading member data...</p>
+              </div>
+            ) : (
+              <div className="px-6 py-4">
+                {/* Member Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{selectedMember.avg_score}</div>
+                    <div className="text-sm text-gray-600">Average Score</div>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{selectedMember.calls_this_month}</div>
+                    <div className="text-sm text-gray-600">Calls This Month</div>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">{selectedMember.close_rate}%</div>
+                    <div className="text-sm text-gray-600">Close Rate</div>
+                  </div>
+                  <div className="bg-orange-50 p-4 rounded-lg">
+                    <div className="flex items-center">
+                      <span className="text-2xl font-bold text-orange-600 mr-2">
+                        {selectedMember.trend === 'up' ? '↗' : selectedMember.trend === 'down' ? '↘' : '→'}
+                      </span>
+                      <span className="text-sm text-gray-600">Trend</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Role Management - Only show for managers+ */}
+                {canManageRoles() && (
+                  <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-3">Role Management</h3>
+                    <div className="flex items-center space-x-4">
+                      <label className="text-sm font-medium text-gray-700">Current Role:</label>
+                      <select
+                        value={memberDbRole}
+                        onChange={(e) => updateMemberRole(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="member">Member</option>
+                        <option value="manager">Manager</option>
+                        {(memberRole === 'owner' || memberRole === 'admin') && (
+                          <option value="admin">Admin</option>
+                        )}
+                      </select>
+                      <span className="text-sm text-gray-500">
+                        {memberDbRole === 'manager' ? 'Can access Team page' : 'Dashboard access only'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Calls */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-3">Recent Calls ({memberCalls.length})</h3>
+                  {memberCalls.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Call</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {memberCalls.map((call) => (
+                            <tr key={call.id}>
+                              <td className="px-4 py-4 text-sm text-gray-900">
+                                {call.title || 'Untitled Call'}
+                              </td>
+                              <td className="px-4 py-4 text-sm">
+                                <span className={`font-semibold ${
+                                  call.score_total >= 16 ? 'text-green-600' : 
+                                  call.score_total >= 12 ? 'text-yellow-600' : 'text-red-600'
+                                }`}>
+                                  {call.score_total?.toFixed(1) || 'N/A'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-4 text-sm text-gray-500">
+                                {formatTimeAgo(call.created_at)}
+                              </td>
+                              <td className="px-4 py-4 text-sm">
+                                {call.flagged_for_review ? (
+                                  <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
+                                    Flagged: {call.flag_reason || 'Review needed'}
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                                    Complete
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                      <p>No calls recorded yet</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={closeMemberModal}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
