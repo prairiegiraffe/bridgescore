@@ -495,6 +495,8 @@ export default function CallDetail() {
             )}
           </div>
           <div className="flex items-center space-x-4">
+            {/* Bridge Step Indicator Boxes */}
+            <BridgeStepIndicators call={call} currentOrg={currentOrg} scoreBreakdown={renderScoreBreakdown()} />
             <div className="text-3xl font-bold text-blue-600">
               {call.score_total}/20
             </div>
@@ -1171,6 +1173,60 @@ function AICoachingTab({ coaching }: AICoachingTabProps) {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Bridge Step Indicators Component
+interface BridgeStepIndicatorsProps {
+  call: CallData;
+  currentOrg: any;
+  scoreBreakdown: any[];
+}
+
+function BridgeStepIndicators({ call, currentOrg, scoreBreakdown }: BridgeStepIndicatorsProps) {
+  if (!call || !currentOrg || !currentOrg.bridge_steps) {
+    return null;
+  }
+
+  // Get organization's bridge steps in the configured order
+  const orgSteps = [...(currentOrg.bridge_steps || [])].sort((a, b) => a.order - b.order);
+  
+  // Create a map of step scores for easy lookup
+  const stepScoreMap = new Map();
+  scoreBreakdown.forEach(({ key, step }) => {
+    stepScoreMap.set(key, step);
+  });
+
+  const getStepColor = (credit: number) => {
+    if (credit >= 1) return 'bg-green-500';
+    if (credit >= 0.5) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+
+  const getStepTextColor = (credit: number) => {
+    if (credit >= 1) return 'text-white';
+    if (credit >= 0.5) return 'text-white';
+    return 'text-white';
+  };
+
+  return (
+    <div className="flex items-center space-x-1">
+      {orgSteps.slice(0, 6).map((orgStep, index) => {
+        const stepScore = stepScoreMap.get(orgStep.key);
+        const credit = stepScore?.credit ?? 0;
+        const points = stepScore ? Math.round(stepScore.credit * stepScore.weight) : 0;
+        
+        return (
+          <div
+            key={orgStep.key || index}
+            className={`w-8 h-8 rounded flex items-center justify-center text-xs font-bold ${getStepColor(credit)} ${getStepTextColor(credit)}`}
+            title={`${orgStep.name}: ${points} points (${credit === 1 ? 'Full' : credit === 0.5 ? 'Partial' : 'None'})`}
+          >
+            {points}
+          </div>
+        );
+      })}
     </div>
   );
 }

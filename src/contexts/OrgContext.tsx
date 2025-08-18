@@ -12,6 +12,7 @@ interface Organization {
   openai_assistant_id?: string;
   openai_vector_store_id?: string;
   banner_image_url?: string;
+  bridge_steps?: any[];
 }
 
 interface OrgContextType {
@@ -62,7 +63,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
         // SuperAdmins can see ALL organizations
         const { data: allOrgs, error: allOrgsError } = await (supabase as any)
           .from('organizations')
-          .select('id, name, demo_mode, openai_assistant_id, openai_vector_store_id, banner_image_url')
+          .select('id, name, demo_mode, openai_assistant_id, openai_vector_store_id, banner_image_url, bridge_steps')
           .order('name');
 
         if (allOrgsError) throw allOrgsError;
@@ -86,6 +87,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
           openai_assistant_id: org.openai_assistant_id,
           openai_vector_store_id: org.openai_vector_store_id,
           banner_image_url: org.banner_image_url,
+          bridge_steps: org.bridge_steps,
         })) || [];
 
         console.log('SuperAdmin - All organizations:', orgs);
@@ -108,7 +110,8 @@ export function OrgProvider({ children }: { children: ReactNode }) {
               demo_mode,
               openai_assistant_id,
               openai_vector_store_id,
-              banner_image_url
+              banner_image_url,
+              bridge_steps
             )
           `)
           .eq('user_id', user?.id);
@@ -126,6 +129,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
           openai_assistant_id: membership.organization.openai_assistant_id,
           openai_vector_store_id: membership.organization.openai_vector_store_id,
           banner_image_url: membership.organization.banner_image_url,
+          bridge_steps: membership.organization.bridge_steps,
         })) || [];
 
         console.log('Regular user - Processed orgs:', orgs);
