@@ -420,28 +420,51 @@ export default function Team() {
     }
   };
 
-  // Temporary simple placeholder for bridge steps
-  const BridgeStepIndicators = () => {
+  // Bridge Step Indicators - Safe implementation
+  const BridgeStepIndicators = ({ call }: { call: Call }) => {
+    // Simple score breakdown processing
+    const getStepScores = () => {
+      const defaultScores = [0, 0, 0, 0, 0, 0];
+      
+      if (!call?.score_breakdown) {
+        return defaultScores;
+      }
+
+      try {
+        if (Array.isArray(call.score_breakdown)) {
+          // New format - take first 6 scores
+          return call.score_breakdown.slice(0, 6).map(step => {
+            const credit = step?.credit || 0;
+            const weight = step?.weight || 0;
+            return credit * weight;
+          });
+        }
+        
+        // Old format - convert to array
+        const entries = Object.entries(call.score_breakdown).filter(([key]) => key !== 'total');
+        return entries.slice(0, 6).map(([_, step]: [string, any]) => {
+          const credit = step?.credit || 0;
+          const weight = step?.weight || 0;
+          return credit * weight;
+        });
+      } catch (error) {
+        return defaultScores;
+      }
+    };
+
+    const stepScores = getStepScores();
+
     return (
       <div className="flex items-center space-x-1">
-        <div className="w-6 h-6 rounded bg-gray-300 flex items-center justify-center text-xs font-bold text-white">
-          -
-        </div>
-        <div className="w-6 h-6 rounded bg-gray-300 flex items-center justify-center text-xs font-bold text-white">
-          -
-        </div>
-        <div className="w-6 h-6 rounded bg-gray-300 flex items-center justify-center text-xs font-bold text-white">
-          -
-        </div>
-        <div className="w-6 h-6 rounded bg-gray-300 flex items-center justify-center text-xs font-bold text-white">
-          -
-        </div>
-        <div className="w-6 h-6 rounded bg-gray-300 flex items-center justify-center text-xs font-bold text-white">
-          -
-        </div>
-        <div className="w-6 h-6 rounded bg-gray-300 flex items-center justify-center text-xs font-bold text-white">
-          -
-        </div>
+        {stepScores.map((score, index) => (
+          <div
+            key={index}
+            className="w-6 h-6 rounded bg-blue-500 flex items-center justify-center text-xs font-bold text-white"
+            title={`Step ${index + 1}: ${score} points`}
+          >
+            {score}
+          </div>
+        ))}
       </div>
     );
   };
@@ -864,7 +887,7 @@ export default function Team() {
                                 </div>
                               </td>
                               <td className="px-4 py-4 text-sm">
-                                <BridgeStepIndicators />
+                                <BridgeStepIndicators call={call} />
                               </td>
                               <td className="px-4 py-4 text-sm">
                                 <span className={`font-semibold ${
