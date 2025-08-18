@@ -225,7 +225,7 @@ export default function CallDetail() {
     if (!call || !isSuperAdmin) return;
     
     const confirmed = window.confirm(
-      `Are you sure you want to delete this call?\n\nTitle: ${call.title}\nScore: ${calculateCurrentTotal()}/20\n\nThis action cannot be undone.`
+      `Are you sure you want to delete this call?\n\nTitle: ${call.title}\nScore: ${renderScoreBreakdown().reduce((sum, { step }) => sum + (step.credit * step.weight), 0)}/20\n\nThis action cannot be undone.`
     );
     
     if (!confirmed) return;
@@ -245,12 +245,6 @@ export default function CallDetail() {
       console.error('Error deleting call:', err);
       alert('Failed to delete call. Please try again.');
     }
-  };
-
-  // Calculate actual current total from step scores
-  const calculateCurrentTotal = () => {
-    const breakdown = renderScoreBreakdown();
-    return breakdown.reduce((sum, { step }) => sum + (step.credit * step.weight), 0);
   };
 
   // Render score breakdown for both old and new formats
@@ -521,7 +515,7 @@ export default function CallDetail() {
             {/* Bridge Step Indicator Boxes */}
             <BridgeStepIndicators call={call} currentOrg={currentOrg} scoreBreakdown={renderScoreBreakdown()} />
             <div className="text-3xl font-bold text-blue-600">
-              {calculateCurrentTotal()}/20
+              {renderScoreBreakdown().reduce((sum, { step }) => sum + (step.credit * step.weight), 0)}/20
             </div>
             {/* Admin Actions */}
             {(memberRole === 'manager' || memberRole === 'superadmin') && (
