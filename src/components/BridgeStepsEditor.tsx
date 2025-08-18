@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useOrg } from '../contexts/OrgContext';
 
 interface BridgeStep {
   key: string;
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export default function BridgeStepsEditor({ client, onClose, onUpdate, isOrganization = false }: Props) {
+  const { refreshOrganizations } = useOrg();
   const [steps, setSteps] = useState<BridgeStep[]>([]);
   const [clientName, setClientName] = useState(client.name);
   const [clientDomain, setClientDomain] = useState(client.domain || '');
@@ -152,6 +154,11 @@ export default function BridgeStepsEditor({ client, onClose, onUpdate, isOrganiz
         .eq('id', client.id);
 
       if (error) throw error;
+      
+      // Refresh organization data if this is an organization update
+      if (isOrganization) {
+        await refreshOrganizations();
+      }
       
       alert(`${isOrganization ? 'Organization' : 'Client'} updated successfully!`);
       onUpdate();

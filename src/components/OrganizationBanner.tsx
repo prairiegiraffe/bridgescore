@@ -1,6 +1,4 @@
-import { useState, useEffect } from 'react';
 import { useOrg } from '../contexts/OrgContext';
-import { supabase } from '../lib/supabase';
 
 interface OrganizationBannerProps {
   className?: string;
@@ -8,42 +6,12 @@ interface OrganizationBannerProps {
 
 export default function OrganizationBanner({ className = '' }: OrganizationBannerProps) {
   const { currentOrg } = useOrg();
-  const [bannerUrl, setBannerUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchBannerUrl = async () => {
-      if (!currentOrg) {
-        setLoading(false);
-        return;
-      }
+  // Get banner URL directly from currentOrg (which now includes banner_image_url)
+  const bannerUrl = currentOrg?.banner_image_url;
 
-      try {
-        const { data, error } = await supabase
-          .from('organizations')
-          .select('banner_image_url')
-          .eq('id', currentOrg.id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching banner URL:', error);
-          setBannerUrl(null);
-        } else {
-          setBannerUrl(data?.banner_image_url || null);
-        }
-      } catch (err) {
-        console.error('Error fetching banner URL:', err);
-        setBannerUrl(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBannerUrl();
-  }, [currentOrg]);
-
-  // Don't render anything while loading or if no banner URL
-  if (loading || !bannerUrl) {
+  // Don't render anything if no current org or no banner URL
+  if (!currentOrg || !bannerUrl) {
     return null;
   }
 

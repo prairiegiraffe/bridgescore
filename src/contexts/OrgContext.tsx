@@ -20,6 +20,7 @@ interface OrgContextType {
   setCurrentOrg: (org: Organization | null) => void;
   loading: boolean;
   error: string | null;
+  refreshOrganizations: () => Promise<void>;
 }
 
 const OrgContext = createContext<OrgContextType | undefined>(undefined);
@@ -61,7 +62,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
         // SuperAdmins can see ALL organizations
         const { data: allOrgs, error: allOrgsError } = await (supabase as any)
           .from('organizations')
-          .select('id, name, demo_mode, openai_assistant_id, openai_vector_store_id')
+          .select('id, name, demo_mode, openai_assistant_id, openai_vector_store_id, banner_image_url')
           .order('name');
 
         if (allOrgsError) throw allOrgsError;
@@ -84,6 +85,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
           is_superadmin: membershipMap.get(org.id)?.is_superadmin || true,
           openai_assistant_id: org.openai_assistant_id,
           openai_vector_store_id: org.openai_vector_store_id,
+          banner_image_url: org.banner_image_url,
         })) || [];
 
         console.log('SuperAdmin - All organizations:', orgs);
@@ -105,7 +107,8 @@ export function OrgProvider({ children }: { children: ReactNode }) {
               name,
               demo_mode,
               openai_assistant_id,
-              openai_vector_store_id
+              openai_vector_store_id,
+              banner_image_url
             )
           `)
           .eq('user_id', user?.id);
@@ -122,6 +125,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
           is_superadmin: membership.is_superadmin,
           openai_assistant_id: membership.organization.openai_assistant_id,
           openai_vector_store_id: membership.organization.openai_vector_store_id,
+          banner_image_url: membership.organization.banner_image_url,
         })) || [];
 
         console.log('Regular user - Processed orgs:', orgs);
@@ -146,6 +150,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     setCurrentOrg,
     loading,
     error,
+    refreshOrganizations: fetchOrganizations,
   };
 
   return <OrgContext.Provider value={value}>{children}</OrgContext.Provider>;
