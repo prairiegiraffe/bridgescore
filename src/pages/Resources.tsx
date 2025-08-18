@@ -19,7 +19,7 @@ interface Resource {
   download_count: number;
   file_size?: string;
   file_type?: string;
-  resource_type?: 'file' | 'video' | 'url';  // Type of resource
+  resource_type?: 'file' | 'url';  // Type of resource
 }
 
 
@@ -119,7 +119,9 @@ export default function Resources() {
         )
       );
       
-      if (resource.external_url) {
+      if (resource.video_url) {
+        window.open(resource.video_url, '_blank');
+      } else if (resource.external_url) {
         window.open(resource.external_url, '_blank');
       } else if (resource.file_url) {
         // Open the file URL directly for download
@@ -128,7 +130,9 @@ export default function Resources() {
     } catch (error) {
       console.error('Error updating download count:', error);
       // Still allow download even if count update fails
-      if (resource.external_url) {
+      if (resource.video_url) {
+        window.open(resource.video_url, '_blank');
+      } else if (resource.external_url) {
         window.open(resource.external_url, '_blank');
       } else if (resource.file_url) {
         window.open(resource.file_url, '_blank');
@@ -306,10 +310,21 @@ export default function Resources() {
                   isSuperAdmin ? 'sm:flex-1' : 'w-full'
                 }`}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-4-4m4 4l4-4m-4-4V4" />
-                </svg>
-                <span>Download</span>
+                {resource.video_url ? (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M19 10a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Watch</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-4-4m4 4l4-4m-4-4V4" />
+                    </svg>
+                    <span>Download</span>
+                  </>
+                )}
               </button>
               
               {isSuperAdmin && (
@@ -736,7 +751,7 @@ function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () =
   const [file, setFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState('');
   const [externalUrl, setExternalUrl] = useState('');
-  const [resourceType, setResourceType] = useState<'file' | 'video' | 'url'>('file');
+  const [resourceType, setResourceType] = useState<'file' | 'url'>('file');
   const [saving, setSaving] = useState(false);
 
   // Predefined categories based on existing resources
@@ -783,56 +798,79 @@ function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () =
       return;
     }
     
-    if (!file) {
+    // Validate required fields based on resource type
+    if (resourceType === 'file' && !file) {
       alert('Please select a file to upload');
+      return;
+    }
+    
+    if (resourceType === 'url' && !videoUrl.trim()) {
+      alert('Please enter a YouTube or Vimeo URL');
       return;
     }
     
     setSaving(true);
     
     try {
-      // Create unique filename
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-      const filePath = `resources/${fileName}`;
-      
-      // Upload file to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('resources')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      let resourceData: any = {
+        title,
+        description,
+        category: finalCategory,
+        icon,
+        resource_type: resourceType,
+        is_global: true,
+        download_count: 0
+      };
+
+      if (resourceType === 'file') {
+        // Handle file upload
+        const fileExt = file!.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+        const filePath = `resources/${fileName}`;
         
-      if (uploadError) {
-        throw new Error(`Upload failed: ${uploadError.message}`);
+        // Upload file to Supabase Storage
+        const { error: uploadError } = await supabase.storage
+          .from('resources')
+          .upload(filePath, file!, {
+            cacheControl: '3600',
+            upsert: false
+          });
+          
+        if (uploadError) {
+          throw new Error(`Upload failed: ${uploadError.message}`);
+        }
+        
+        // Get public URL for the uploaded file
+        const { data: urlData } = supabase.storage
+          .from('resources')
+          .getPublicUrl(filePath);
+        
+        // Calculate file size in MB/KB
+        const fileSize = file!.size > 1024 * 1024 
+          ? `${(file!.size / (1024 * 1024)).toFixed(1)} MB`
+          : `${(file!.size / 1024).toFixed(0)} KB`;
+        
+        // Add file-specific data
+        resourceData = {
+          ...resourceData,
+          file_url: urlData.publicUrl,
+          file_path: filePath,
+          file_size: fileSize,
+          file_type: file!.type
+        };
+      } else if (resourceType === 'url') {
+        // Handle video URL
+        resourceData = {
+          ...resourceData,
+          video_url: videoUrl.trim(),
+          file_type: 'VIDEO'
+        };
       }
-      
-      // Get public URL for the uploaded file
-      const { data: urlData } = supabase.storage
-        .from('resources')
-        .getPublicUrl(filePath);
-      
-      // Calculate file size in MB/KB
-      const fileSize = file.size > 1024 * 1024 
-        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-        : `${(file.size / 1024).toFixed(0)} KB`;
       
       // Save resource to database
       const { error: dbError } = await supabase
         .from('resources')
-        .insert({
-          title,
-          description,
-          category: finalCategory,
-          icon,
-          file_url: urlData.publicUrl,
-          file_path: filePath,
-          file_size: fileSize,
-          file_type: file.type,
-          is_global: true, // For now, make all resources global
-          download_count: 0
-        })
+        .insert(resourceData)
         .select()
         .single();
 
@@ -924,8 +962,24 @@ function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () =
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              File Upload *
+              Resource Type *
             </label>
+            <select
+              value={resourceType}
+              onChange={(e) => setResourceType(e.target.value as 'file' | 'url')}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            >
+              <option value="file">📄 Document/PDF Upload</option>
+              <option value="url">🎥 YouTube/Vimeo Link</option>
+            </select>
+          </div>
+
+          {resourceType === 'file' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                File Upload *
+              </label>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
               <input
                 type="file"
@@ -967,7 +1021,27 @@ function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () =
                 </button>
               )}
             </div>
-          </div>
+            </div>
+          )}
+
+          {resourceType === 'url' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                YouTube/Vimeo URL *
+              </label>
+              <input
+                type="url"
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/..."
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Paste the full YouTube or Vimeo video URL
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
