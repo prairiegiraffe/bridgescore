@@ -460,7 +460,7 @@ export default function Team() {
       return 'bg-red-500';
     };
 
-    const getStepTextColor = (credit: number) => {
+    const getStepTextColor = () => {
       return 'text-white';
     };
 
@@ -474,7 +474,7 @@ export default function Team() {
           return (
             <div
               key={orgStep.key || index}
-              className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${getStepColor(credit)} ${getStepTextColor(credit)}`}
+              className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${getStepColor(credit)} ${getStepTextColor()}`}
               title={`${orgStep.name}: ${points} points (${credit === 1 ? 'Full' : credit === 0.5 ? 'Partial' : 'None'})`}
             >
               {points}
