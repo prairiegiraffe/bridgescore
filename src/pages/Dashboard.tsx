@@ -5,6 +5,7 @@ import { useOrg } from '../contexts/OrgContext';
 import { supabase } from '../lib/supabase';
 import { FLAGS } from '../lib/flags';
 import { getActiveAssistantVersion, getAssistantVersions, type AssistantVersion } from '../lib/assistants';
+import OrganizationBanner from '../components/OrganizationBanner';
 
 interface Call {
   id: string;
@@ -733,6 +734,9 @@ export default function Dashboard() {
           Score New Call
         </button>
       </div>
+
+      {/* Organization Banner */}
+      <OrganizationBanner className="mb-6" />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">

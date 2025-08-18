@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { FLAGS } from '../lib/flags';
 import { getAssistantVersions, type AssistantVersion } from '../lib/assistants';
 import { rescoreCall } from '../lib/newCallScoring';
+import OrganizationBanner from '../components/OrganizationBanner';
 
 interface CallData {
   id: string;
@@ -473,6 +474,9 @@ export default function CallDetail() {
           </div>
         </div>
       </div>
+
+      {/* Organization Banner */}
+      <OrganizationBanner className="mb-6" />
 
       {/* Score Summary */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">

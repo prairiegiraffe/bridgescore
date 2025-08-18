@@ -11,6 +11,7 @@ interface Organization {
   domain?: string;
   primary_color: string;
   secondary_color: string;
+  banner_image_url?: string;
   bridge_steps: any[];
   openai_assistant_id?: string;
   openai_vector_store_id?: string;

@@ -14,6 +14,7 @@ interface Client {
   name: string;
   domain?: string;
   logo_url?: string;
+  banner_image_url?: string;
   primary_color: string;
   secondary_color: string;
   bridge_steps: BridgeStep[];
@@ -33,15 +34,65 @@ export default function BridgeStepsEditor({ client, onClose, onUpdate, isOrganiz
   const [clientName, setClientName] = useState(client.name);
   const [clientDomain, setClientDomain] = useState(client.domain || '');
   const [logoUrl, setLogoUrl] = useState(client.logo_url || '');
+  const [bannerImageUrl, setBannerImageUrl] = useState(client.banner_image_url || '');
   const [primaryColor, setPrimaryColor] = useState(client.primary_color);
   const [secondaryColor, setSecondaryColor] = useState(client.secondary_color);
   const [saving, setSaving] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
   const [activeTab, setActiveTab] = useState<'steps' | 'branding'>('steps');
   const [editingStep, setEditingStep] = useState<string | null>(null);
 
   useEffect(() => {
     setSteps([...client.bridge_steps].sort((a, b) => a.order - b.order));
   }, [client]);
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/svg+xml'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please upload a valid image file (PNG, JPG, WEBP, or SVG)');
+      return;
+    }
+
+    // Validate file size (max 5MB for banner images)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Banner image file size must be less than 5MB');
+      return;
+    }
+
+    setUploadingBanner(true);
+    try {
+      // Create unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `banner-${client.id}-${Date.now()}.${fileExt}`;
+      const filePath = `banners/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('resources')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('resources')
+        .getPublicUrl(filePath);
+
+      setBannerImageUrl(urlData.publicUrl);
+    } catch (error) {
+      console.error('Error uploading banner:', error);
+      alert('Failed to upload banner image. Please try again.');
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
 
   const updateStep = (stepKey: string, updates: Partial<BridgeStep>) => {
     setSteps(prevSteps => 
@@ -93,6 +144,7 @@ export default function BridgeStepsEditor({ client, onClose, onUpdate, isOrganiz
           name: clientName,
           domain: clientDomain || null,
           logo_url: logoUrl || null,
+          banner_image_url: bannerImageUrl || null,
           primary_color: primaryColor,
           secondary_color: secondaryColor,
           bridge_steps: steps
@@ -356,6 +408,56 @@ Score: 1 = Strong close attempt or specific scheduling, 0.5 = Some closing effor
                       placeholder="https://company.com/logo.png"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Banner Image
+                    </label>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleBannerUpload}
+                          disabled={uploadingBanner}
+                          className="hidden"
+                          id="banner-upload"
+                        />
+                        <label
+                          htmlFor="banner-upload"
+                          className={`px-4 py-2 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 ${
+                            uploadingBanner ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
+                        >
+                          {uploadingBanner ? 'Uploading...' : 'Choose Banner Image'}
+                        </label>
+                        {bannerImageUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setBannerImageUrl('')}
+                            className="text-sm text-red-600 hover:text-red-800"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        type="url"
+                        value={bannerImageUrl}
+                        onChange={(e) => setBannerImageUrl(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        placeholder="Or enter banner image URL directly"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Upload a banner image (PNG, JPG, WEBP, SVG, max 5MB). This will be displayed full-width on Dashboard, Call Detail, and Resources pages.
+                      </p>
+                      {bannerImageUrl && (
+                        <div className="mt-2">
+                          <img src={bannerImageUrl} alt="Banner Preview" className="w-full h-24 object-cover border border-gray-200 rounded" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 

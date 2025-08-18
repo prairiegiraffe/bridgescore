@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 import { supabase } from '../lib/supabase';
+import OrganizationBanner from '../components/OrganizationBanner';
 
 interface Resource {
   id: string;
@@ -245,6 +246,9 @@ export default function Resources() {
           )}
         </div>
       </div>
+
+      {/* Organization Banner */}
+      <OrganizationBanner className="mb-6" />
 
       {/* Category Filter */}
       <div className="mb-6">
