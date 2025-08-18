@@ -750,7 +750,6 @@ function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () =
   const [icon, setIcon] = useState('📄');
   const [file, setFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState('');
-  const [externalUrl, setExternalUrl] = useState('');
   const [resourceType, setResourceType] = useState<'file' | 'url'>('file');
   const [saving, setSaving] = useState(false);
 

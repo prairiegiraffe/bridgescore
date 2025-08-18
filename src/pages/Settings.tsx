@@ -46,7 +46,7 @@ export default function Settings() {
 
   // Check if feature is enabled and user has access
   useEffect(() => {
-    if (!FLAGS.SETTINGS || !FLAGS.ORGS) {
+    if (!FLAGS.ORGS) {
       navigate('/dashboard');
       return;
     }
