@@ -22,6 +22,7 @@ interface Call {
   id: string;
   title: string;
   score_total: number;
+  score_breakdown: any;
   created_at: string;
   flagged_for_review: boolean;
   flag_reason?: string;
@@ -279,7 +280,7 @@ export default function Team() {
       for (const member of members) {
         const { data: calls, error: callsError } = await (supabase as any)
           .from('calls')
-          .select('*')
+          .select('*, score_breakdown')
           .eq('user_id', member.user_id)
           .eq('org_id', currentOrg.id)
           .gte('created_at', new Date(new Date().setDate(new Date().getDate() - 30)).toISOString());
@@ -292,14 +293,14 @@ export default function Team() {
         const callsThisMonth = calls?.length || 0;
         totalCalls += callsThisMonth;
 
-        // Calculate average score
-        const scores = calls?.map((call: any) => call.score_total || 0) || [];
+        // Calculate average score using calculated scores
+        const scores = calls?.map((call: any) => calculateCallScore(call)) || [];
         const avgScore = scores.length > 0 ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : 0;
         console.log('Team: Member', member.email, 'has', calls?.length, 'calls with scores:', scores, 'avg:', avgScore);
         totalScore += avgScore;
 
         // Calculate close rate (calls with score >= 16 out of 20, which is 80%+)
-        const closedCalls = calls?.filter((call: any) => (call.score_total || 0) >= 16) || [];
+        const closedCalls = calls?.filter((call: any) => calculateCallScore(call) >= 16) || [];
         const closeRate = callsThisMonth > 0 ? (closedCalls.length / callsThisMonth) * 100 : 0;
         console.log('Team: Member', member.email, 'close rate:', closedCalls.length, '/', callsThisMonth, '=', Math.round(closeRate) + '%');
         totalCloseRate += closeRate;
@@ -370,6 +371,21 @@ export default function Team() {
     }
   };
 
+  // Calculate actual score from breakdown data
+  const calculateCallScore = (call: Call) => {
+    if (!call.score_breakdown) return call.score_total;
+    
+    // New OpenAI format (array of stepScores)
+    if (Array.isArray(call.score_breakdown)) {
+      return call.score_breakdown.reduce((sum: number, step: any) => sum + (step.credit * step.weight), 0);
+    }
+    
+    // Old format (object with keys)
+    return Object.entries(call.score_breakdown)
+      .filter(([key]) => key !== 'total')
+      .reduce((sum: number, [_, step]: [string, any]) => sum + (step.credit * step.weight), 0);
+  };
+
   const formatTimeAgo = (dateString: string) => {
     const now = new Date();
     const past = new Date(dateString);
@@ -411,7 +427,7 @@ export default function Team() {
       console.log('Team: Fetching calls for member:', member.id, 'in org:', currentOrg?.id);
       const { data: calls, error: callsError } = await (supabase as any)
         .from('calls')
-        .select('id, title, score_total, created_at, flagged_for_review, flag_reason')
+        .select('id, title, score_total, score_breakdown, created_at, flagged_for_review, flag_reason')
         .eq('user_id', member.id)
         .eq('org_id', currentOrg?.id)
         .order('created_at', { ascending: false })
@@ -814,10 +830,10 @@ export default function Team() {
                               </td>
                               <td className="px-4 py-4 text-sm">
                                 <span className={`font-semibold ${
-                                  call.score_total >= 16 ? 'text-green-600' : 
-                                  call.score_total >= 12 ? 'text-yellow-600' : 'text-red-600'
+                                  calculateCallScore(call) >= 16 ? 'text-green-600' : 
+                                  calculateCallScore(call) >= 12 ? 'text-yellow-600' : 'text-red-600'
                                 }`}>
-                                  {call.score_total?.toFixed(1) || 'N/A'}
+                                  {calculateCallScore(call)?.toFixed(1) || 'N/A'}
                                 </span>
                               </td>
                               <td className="px-4 py-4 text-sm text-gray-500">

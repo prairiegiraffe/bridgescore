@@ -11,6 +11,7 @@ interface Call {
   id: string;
   title: string;
   score_total: number;
+  score_breakdown: any;
   created_at: string;
   user_id: string;
   framework_version?: string;
@@ -124,6 +125,7 @@ export default function Dashboard() {
           id, 
           title, 
           score_total, 
+          score_breakdown,
           created_at, 
           flagged_for_review, 
           flag_reason, 
@@ -681,20 +683,35 @@ export default function Dashboard() {
     });
   };
 
+  // Calculate actual score from breakdown data
+  const calculateCallScore = (call: Call) => {
+    if (!call.score_breakdown) return call.score_total;
+    
+    // New OpenAI format (array of stepScores)
+    if (Array.isArray(call.score_breakdown)) {
+      return call.score_breakdown.reduce((sum: number, step: any) => sum + (step.credit * step.weight), 0);
+    }
+    
+    // Old format (object with keys)
+    return Object.entries(call.score_breakdown)
+      .filter(([key]) => key !== 'total')
+      .reduce((sum: number, [_, step]: [string, any]) => sum + (step.credit * step.weight), 0);
+  };
+
   const getScoreColor = (score: number) => {
     if (score >= 16) return 'text-green-600 bg-green-100';
     if (score >= 10) return 'text-yellow-600 bg-yellow-100';
     return 'text-red-600 bg-red-100';
   };
 
-  const handleDeleteCall = async (e: React.MouseEvent, callId: string, callTitle: string, callScore: number) => {
+  const handleDeleteCall = async (e: React.MouseEvent, callId: string, callTitle: string, call: Call) => {
     e.preventDefault(); // Prevent navigation to call detail
     e.stopPropagation(); // Stop event bubbling
     
     if (!isSuperAdmin) return;
     
     const confirmed = window.confirm(
-      `Are you sure you want to delete this call?\n\nTitle: ${callTitle}\nScore: ${callScore}/20\n\nThis action cannot be undone.`
+      `Are you sure you want to delete this call?\n\nTitle: ${callTitle}\nScore: ${calculateCallScore(call)}/20\n\nThis action cannot be undone.`
     );
     
     if (!confirmed) return;
@@ -1246,7 +1263,7 @@ export default function Dashboard() {
                   )}
                   {isSuperAdmin && (
                     <button
-                      onClick={(e) => handleDeleteCall(e, call.id, call.title, call.score_total)}
+                      onClick={(e) => handleDeleteCall(e, call.id, call.title, call)}
                       className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
                       title="Delete Call"
                     >
@@ -1263,8 +1280,8 @@ export default function Dashboard() {
                 >
                   {/* Score Badge */}
                   <div className="mb-3">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(call.score_total)}`}>
-                      {call.score_total}/20
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(calculateCallScore(call))}`}>
+                      {calculateCallScore(call)}/20
                     </span>
                   </div>
                   
