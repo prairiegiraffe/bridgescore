@@ -1243,7 +1243,7 @@ export default function Dashboard() {
                 
                 <Link
                   to={`/calls/${call.id}`}
-                  className="block"
+                  className={`block ${isSuperAdmin ? 'pb-6' : ''}`}
                 >
                   {/* Score Badge */}
                   <div className="mb-3">
@@ -1257,8 +1257,8 @@ export default function Dashboard() {
                     {call.title}
                   </h3>
                   
-                  {/* Metadata */}
-                  <div className="space-y-1 text-xs text-gray-500">
+                  {/* Metadata - Add left padding when delete button is present */}
+                  <div className={`space-y-1 text-xs text-gray-500 ${isSuperAdmin ? 'pl-7' : ''}`}>
                     <p>{formatDate(call.created_at)}</p>
                     {FLAGS.ORGS && call.user?.email && (
                       <p>by {call.user.email}</p>
@@ -1270,9 +1270,9 @@ export default function Dashboard() {
                     )}
                   </div>
                   
-                  {/* Flag Reason Tooltip on Hover */}
+                  {/* Flag Reason Tooltip on Hover - Add left padding when delete button is present */}
                   {call.flagged_for_review && call.flag_reason && (
-                    <div className="mt-2 pt-2 border-t border-gray-100">
+                    <div className={`mt-2 pt-2 border-t border-gray-100 ${isSuperAdmin ? 'pl-7' : ''}`}>
                       <p className="text-xs text-red-600 line-clamp-2" title={call.flag_reason}>
                         ⚠️ {call.flag_reason}
                       </p>
