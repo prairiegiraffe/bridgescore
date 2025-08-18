@@ -840,7 +840,7 @@ export default function Team() {
                                   calculateCallScore(call) >= 16 ? 'text-green-600' : 
                                   calculateCallScore(call) >= 12 ? 'text-yellow-600' : 'text-red-600'
                                 }`}>
-                                  {calculateCallScore(call)?.toFixed(1) || 'N/A'}
+                                  {calculateCallScore(call).toFixed(1) || 'N/A'}
                                 </span>
                               </td>
                               <td className="px-4 py-4 text-sm text-gray-500">
