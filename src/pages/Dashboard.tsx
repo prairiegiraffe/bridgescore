@@ -1227,8 +1227,8 @@ export default function Dashboard() {
                 key={call.id}
                 className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-lg transition-all relative group"
               >
-                {/* Flag/Status Indicators */}
-                <div className="absolute top-2 right-2 flex space-x-1">
+                {/* Flag/Status Indicators and Delete Button */}
+                <div className="absolute top-2 right-2 flex items-center space-x-1">
                   {call.flagged_for_review && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800" title={call.flag_reason || 'Flagged for review'}>
                       🚩
@@ -1239,11 +1239,22 @@ export default function Dashboard() {
                       ✏️
                     </span>
                   )}
+                  {isSuperAdmin && (
+                    <button
+                      onClick={(e) => handleDeleteCall(e, call.id, call.title, call.score_total)}
+                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                      title="Delete Call"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
                 
                 <Link
                   to={`/calls/${call.id}`}
-                  className={`block ${isSuperAdmin ? 'pb-6' : ''}`}
+                  className="block"
                 >
                   {/* Score Badge */}
                   <div className="mb-3">
@@ -1257,8 +1268,8 @@ export default function Dashboard() {
                     {call.title}
                   </h3>
                   
-                  {/* Metadata - Add left padding when delete button is present */}
-                  <div className={`space-y-1 text-xs text-gray-500 ${isSuperAdmin ? 'pl-7' : ''}`}>
+                  {/* Metadata */}
+                  <div className="space-y-1 text-xs text-gray-500">
                     <p>{formatDate(call.created_at)}</p>
                     {FLAGS.ORGS && call.user?.email && (
                       <p>by {call.user.email}</p>
@@ -1270,28 +1281,15 @@ export default function Dashboard() {
                     )}
                   </div>
                   
-                  {/* Flag Reason Tooltip on Hover - Add left padding when delete button is present */}
+                  {/* Flag Reason Tooltip on Hover */}
                   {call.flagged_for_review && call.flag_reason && (
-                    <div className={`mt-2 pt-2 border-t border-gray-100 ${isSuperAdmin ? 'pl-7' : ''}`}>
+                    <div className="mt-2 pt-2 border-t border-gray-100">
                       <p className="text-xs text-red-600 line-clamp-2" title={call.flag_reason}>
                         ⚠️ {call.flag_reason}
                       </p>
                     </div>
                   )}
                 </Link>
-                
-                {/* Delete Button for SuperAdmins - Trash Icon in Bottom Left */}
-                {isSuperAdmin && (
-                  <button
-                    onClick={(e) => handleDeleteCall(e, call.id, call.title, call.score_total)}
-                    className="absolute bottom-2 left-2 p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
-                    title="Delete Call"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                )}
               </div>
             ))}
           </div>
