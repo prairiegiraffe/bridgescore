@@ -18,11 +18,18 @@ interface TeamMember {
   monthly_scores: number[];
 }
 
+interface StepScore {
+  step: string;
+  credit: number;
+  weight: number;
+  stepName?: string;
+}
+
 interface Call {
   id: string;
   title: string;
   score_total: number;
-  score_breakdown: any;
+  score_breakdown: StepScore[] | Record<string, any> | null;
   created_at: string;
   flagged_for_review: boolean;
   flag_reason?: string;
@@ -377,7 +384,7 @@ export default function Team() {
     
     // New OpenAI format (array of stepScores)
     if (Array.isArray(call.score_breakdown)) {
-      return call.score_breakdown.reduce((sum: number, step: any) => sum + (step.credit * step.weight), 0);
+      return call.score_breakdown.reduce((sum: number, step: StepScore) => sum + (step.credit * step.weight), 0);
     }
     
     // Old format (object with keys)

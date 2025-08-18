@@ -7,11 +7,18 @@ import { FLAGS } from '../lib/flags';
 import { getActiveAssistantVersion, getAssistantVersions, type AssistantVersion } from '../lib/assistants';
 import OrganizationBanner from '../components/OrganizationBanner';
 
+interface StepScore {
+  step: string;
+  credit: number;
+  weight: number;
+  stepName?: string;
+}
+
 interface Call {
   id: string;
   title: string;
   score_total: number;
-  score_breakdown: any;
+  score_breakdown: StepScore[] | Record<string, any> | null;
   created_at: string;
   user_id: string;
   framework_version?: string;
@@ -689,7 +696,7 @@ export default function Dashboard() {
     
     // New OpenAI format (array of stepScores)
     if (Array.isArray(call.score_breakdown)) {
-      return call.score_breakdown.reduce((sum: number, step: any) => sum + (step.credit * step.weight), 0);
+      return call.score_breakdown.reduce((sum: number, step: StepScore) => sum + (step.credit * step.weight), 0);
     }
     
     // Old format (object with keys)
