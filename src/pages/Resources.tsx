@@ -11,6 +11,7 @@ interface Resource {
   category: string;
   file_url?: string;
   external_url?: string;
+  video_url?: string;  // For YouTube/Vimeo links
   last_updated: string;
   created_by: string;
   org_id?: string;
@@ -18,6 +19,7 @@ interface Resource {
   download_count: number;
   file_size?: string;
   file_type?: string;
+  resource_type?: 'file' | 'video' | 'url';  // Type of resource
 }
 
 
@@ -79,13 +81,15 @@ export default function Resources() {
         category: resource.category,
         file_url: resource.file_url,
         external_url: resource.external_url,
+        video_url: resource.video_url,
         last_updated: new Date(resource.updated_at).toISOString().split('T')[0],
         created_by: 'SuperAdmin', // We could join with users table to get actual names
         org_id: resource.org_id,
         is_global: resource.is_global,
         download_count: resource.download_count || 0,
         file_size: resource.file_size,
-        file_type: resource.file_type?.toUpperCase() || 'FILE'
+        file_type: resource.file_type?.toUpperCase() || 'FILE',
+        resource_type: resource.resource_type || 'file'
       }));
 
       setResources(transformedResources);
@@ -730,6 +734,9 @@ function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () =
   const [customCategory, setCustomCategory] = useState('');
   const [icon, setIcon] = useState('📄');
   const [file, setFile] = useState<File | null>(null);
+  const [videoUrl, setVideoUrl] = useState('');
+  const [externalUrl, setExternalUrl] = useState('');
+  const [resourceType, setResourceType] = useState<'file' | 'video' | 'url'>('file');
   const [saving, setSaving] = useState(false);
 
   // Predefined categories based on existing resources
