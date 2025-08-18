@@ -20,7 +20,7 @@ export default function OrganizationBanner({ className = '' }: OrganizationBanne
       <img
         src={bannerUrl}
         alt={`${currentOrg?.name} banner`}
-        className="w-full h-32 md:h-40 lg:h-48 object-cover"
+        className="w-full h-auto"
         onError={(e) => {
           // Hide the banner if the image fails to load
           const target = e.target as HTMLElement;
