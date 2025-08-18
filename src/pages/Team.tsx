@@ -33,6 +33,7 @@ interface Call {
   created_at: string;
   flagged_for_review: boolean;
   flag_reason?: string;
+  manually_adjusted?: boolean;
 }
 
 interface TeamMetrics {
@@ -419,6 +420,71 @@ export default function Team() {
     }
   };
 
+  // Bridge Step Indicators Component for Teams page
+  const BridgeStepIndicators = ({ call }: { call: Call }) => {
+    if (!call || !currentOrg || !currentOrg.bridge_steps) {
+      return null;
+    }
+
+    // Get organization's bridge steps in the configured order
+    const orgSteps = [...(currentOrg.bridge_steps || [])].sort((a, b) => a.order - b.order);
+    
+    // Create score breakdown in the same format as CallDetail
+    let scoreBreakdown: any[] = [];
+    
+    if (Array.isArray(call.score_breakdown)) {
+      scoreBreakdown = call.score_breakdown.map((stepScore: any) => ({
+        key: stepScore.step,
+        step: stepScore,
+        stepName: stepScore.stepName
+      }));
+    } else if (call.score_breakdown) {
+      scoreBreakdown = Object.entries(call.score_breakdown)
+        .filter(([key]) => key !== 'total')
+        .map(([key, step]: [string, any]) => ({
+          key,
+          step,
+          stepName: key
+        }));
+    }
+    
+    // Create a map of step scores for easy lookup
+    const stepScoreMap = new Map();
+    scoreBreakdown.forEach(({ key, step }) => {
+      stepScoreMap.set(key, step);
+    });
+
+    const getStepColor = (credit: number) => {
+      if (credit >= 1) return 'bg-green-500';
+      if (credit >= 0.5) return 'bg-yellow-500';
+      return 'bg-red-500';
+    };
+
+    const getStepTextColor = (credit: number) => {
+      return 'text-white';
+    };
+
+    return (
+      <div className="flex items-center space-x-1">
+        {orgSteps.slice(0, 6).map((orgStep, index) => {
+          const stepScore = stepScoreMap.get(orgStep.key);
+          const credit = stepScore?.credit ?? 0;
+          const points = stepScore ? (stepScore.credit * stepScore.weight) : 0;
+          
+          return (
+            <div
+              key={orgStep.key || index}
+              className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${getStepColor(credit)} ${getStepTextColor(credit)}`}
+              title={`${orgStep.name}: ${points} points (${credit === 1 ? 'Full' : credit === 0.5 ? 'Partial' : 'None'})`}
+            >
+              {points}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const canManageRoles = () => {
     // Check if user can manage roles (manager level or SuperAdmin)
     const allowedRoles = ['manager'];
@@ -434,7 +500,7 @@ export default function Team() {
       console.log('Team: Fetching calls for member:', member.id, 'in org:', currentOrg?.id);
       const { data: calls, error: callsError } = await (supabase as any)
         .from('calls')
-        .select('id, title, score_total, score_breakdown, created_at, flagged_for_review, flag_reason')
+        .select('id, title, score_total, score_breakdown, created_at, flagged_for_review, flag_reason, manually_adjusted')
         .eq('user_id', member.id)
         .eq('org_id', currentOrg?.id)
         .order('created_at', { ascending: false })
@@ -812,6 +878,7 @@ export default function Team() {
                         <thead className="bg-gray-50">
                           <tr>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Call</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bridge Steps</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -836,6 +903,9 @@ export default function Team() {
                                 </div>
                               </td>
                               <td className="px-4 py-4 text-sm">
+                                <BridgeStepIndicators call={call} />
+                              </td>
+                              <td className="px-4 py-4 text-sm">
                                 <span className={`font-semibold ${
                                   calculateCallScore(call) >= 16 ? 'text-green-600' : 
                                   calculateCallScore(call) >= 12 ? 'text-yellow-600' : 'text-red-600'
@@ -847,15 +917,29 @@ export default function Team() {
                                 {formatTimeAgo(call.created_at)}
                               </td>
                               <td className="px-4 py-4 text-sm">
-                                {call.flagged_for_review ? (
-                                  <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
-                                    Flagged: {call.flag_reason || 'Review needed'}
-                                  </span>
-                                ) : (
-                                  <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                                    Complete
-                                  </span>
-                                )}
+                                <div className="flex items-center space-x-2">
+                                  {call.flagged_for_review && (
+                                    <span 
+                                      className="text-red-600" 
+                                      title={call.flag_reason || 'Flagged for review'}
+                                    >
+                                      🚩
+                                    </span>
+                                  )}
+                                  {call.manually_adjusted && (
+                                    <span 
+                                      className="text-orange-600" 
+                                      title="Manually adjusted"
+                                    >
+                                      ✏️
+                                    </span>
+                                  )}
+                                  {!call.flagged_for_review && !call.manually_adjusted && (
+                                    <span className="text-green-600" title="Complete">
+                                      ✓
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           ))}
