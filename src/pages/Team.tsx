@@ -920,25 +920,25 @@ export default function Team() {
                               <td className="px-4 py-4 text-sm">
                                 <div className="flex items-center space-x-2">
                                   {call.flagged_for_review && (
-                                    <span 
-                                      className="text-red-600" 
-                                      title={call.flag_reason || 'Flagged for review'}
-                                    >
-                                      🚩
-                                    </span>
+                                    <div title={call.flag_reason || 'Flagged for review'}>
+                                      <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+                                      </svg>
+                                    </div>
                                   )}
                                   {call.manually_adjusted && (
-                                    <span 
-                                      className="text-orange-600" 
-                                      title="Manually adjusted"
-                                    >
-                                      ✏️
-                                    </span>
+                                    <div title="Manually adjusted">
+                                      <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                      </svg>
+                                    </div>
                                   )}
                                   {!call.flagged_for_review && !call.manually_adjusted && (
-                                    <span className="text-green-600" title="Complete">
-                                      ✓
-                                    </span>
+                                    <div title="Complete">
+                                      <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    </div>
                                   )}
                                 </div>
                               </td>
