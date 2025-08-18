@@ -686,6 +686,36 @@ export default function Dashboard() {
     return 'text-red-600 bg-red-100';
   };
 
+  const handleDeleteCall = async (e: React.MouseEvent, callId: string, callTitle: string, callScore: number) => {
+    e.preventDefault(); // Prevent navigation to call detail
+    e.stopPropagation(); // Stop event bubbling
+    
+    if (!isSuperAdmin) return;
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete this call?\n\nTitle: ${callTitle}\nScore: ${callScore}/20\n\nThis action cannot be undone.`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      const { error } = await supabase
+        .from('calls')
+        .delete()
+        .eq('id', callId);
+      
+      if (error) throw error;
+      
+      alert('Call deleted successfully');
+      // Refresh the calls list
+      fetchRecentCalls();
+      fetchUserStats();
+    } catch (err) {
+      console.error('Error deleting call:', err);
+      alert('Failed to delete call. Please try again.');
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-6 lg:py-6">
       {/* Header with Welcome and Score Button */}
@@ -1193,10 +1223,9 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {recentCalls.map((call) => (
-              <Link
+              <div
                 key={call.id}
-                to={`/calls/${call.id}`}
-                className="block border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-lg transition-all relative group"
+                className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-lg transition-all relative group"
               >
                 {/* Flag/Status Indicators */}
                 <div className="absolute top-2 right-2 flex space-x-1">
@@ -1212,40 +1241,57 @@ export default function Dashboard() {
                   )}
                 </div>
                 
-                {/* Score Badge */}
-                <div className="mb-3">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(call.score_total)}`}>
-                    {call.score_total}/20
-                  </span>
-                </div>
-                
-                {/* Call Title */}
-                <h3 className="text-sm font-medium text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600">
-                  {call.title}
-                </h3>
-                
-                {/* Metadata */}
-                <div className="space-y-1 text-xs text-gray-500">
-                  <p>{formatDate(call.created_at)}</p>
-                  {FLAGS.ORGS && call.user?.email && (
-                    <p>by {call.user.email}</p>
+                <Link
+                  to={`/calls/${call.id}`}
+                  className="block"
+                >
+                  {/* Score Badge */}
+                  <div className="mb-3">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(call.score_total)}`}>
+                      {call.score_total}/20
+                    </span>
+                  </div>
+                  
+                  {/* Call Title */}
+                  <h3 className="text-sm font-medium text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600">
+                    {call.title}
+                  </h3>
+                  
+                  {/* Metadata */}
+                  <div className="space-y-1 text-xs text-gray-500">
+                    <p>{formatDate(call.created_at)}</p>
+                    {FLAGS.ORGS && call.user?.email && (
+                      <p>by {call.user.email}</p>
+                    )}
+                    {call.assistant_version && (
+                      <p className="text-gray-400">
+                        {call.assistant_version.name} v{call.assistant_version.version}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Flag Reason Tooltip on Hover */}
+                  {call.flagged_for_review && call.flag_reason && (
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                      <p className="text-xs text-red-600 line-clamp-2" title={call.flag_reason}>
+                        ⚠️ {call.flag_reason}
+                      </p>
+                    </div>
                   )}
-                  {call.assistant_version && (
-                    <p className="text-gray-400">
-                      {call.assistant_version.name} v{call.assistant_version.version}
-                    </p>
-                  )}
-                </div>
+                </Link>
                 
-                {/* Flag Reason Tooltip on Hover */}
-                {call.flagged_for_review && call.flag_reason && (
-                  <div className="mt-2 pt-2 border-t border-gray-100">
-                    <p className="text-xs text-red-600 line-clamp-2" title={call.flag_reason}>
-                      ⚠️ {call.flag_reason}
-                    </p>
+                {/* Delete Button for SuperAdmins */}
+                {isSuperAdmin && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <button
+                      onClick={(e) => handleDeleteCall(e, call.id, call.title, call.score_total)}
+                      className="w-full bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 transition-colors"
+                    >
+                      Delete Call
+                    </button>
                   </div>
                 )}
-              </Link>
+              </div>
             ))}
           </div>
         )}

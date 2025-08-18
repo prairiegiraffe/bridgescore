@@ -220,6 +220,32 @@ export default function CallDetail() {
     }
   };
 
+  const handleDeleteCall = async () => {
+    if (!call || !isSuperAdmin) return;
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete this call?\n\nTitle: ${call.title}\nScore: ${call.score_total}/20\n\nThis action cannot be undone.`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      const { error } = await supabase
+        .from('calls')
+        .delete()
+        .eq('id', call.id);
+      
+      if (error) throw error;
+      
+      alert('Call deleted successfully');
+      // Navigate back to dashboard after deletion
+      window.location.href = '/dashboard';
+    } catch (err) {
+      console.error('Error deleting call:', err);
+      alert('Failed to delete call. Please try again.');
+    }
+  };
+
   // Render score breakdown for both old and new formats
   const renderScoreBreakdown = () => {
     if (!call) return [];
@@ -525,6 +551,17 @@ export default function CallDetail() {
                     disabled={editingScores}
                   >
                     Unflag
+                  </button>
+                )}
+                
+                {/* Delete Call Button - SuperAdmin Only */}
+                {isSuperAdmin && (
+                  <button
+                    onClick={handleDeleteCall}
+                    className="bg-red-700 text-white px-3 py-1 rounded text-sm hover:bg-red-800"
+                    disabled={editingScores || rescoring}
+                  >
+                    Delete Call
                   </button>
                 )}
                 
