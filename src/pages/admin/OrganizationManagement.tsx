@@ -1582,7 +1582,7 @@ function GlobalBrandingModal({ branding, onClose, onUpdate }: {
 
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
-        .from('public')
+        .from('resources')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: true
@@ -1592,7 +1592,7 @@ function GlobalBrandingModal({ branding, onClose, onUpdate }: {
 
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from('public')
+        .from('resources')
         .getPublicUrl(filePath);
 
       setFaviconUrl(urlData.publicUrl);
