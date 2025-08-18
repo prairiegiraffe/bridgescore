@@ -1452,7 +1452,7 @@ function DebugTab({ rawResponse, call, currentOrg }: DebugTabProps) {
               <div>
                 <label className="block font-medium text-purple-700 mb-1">Total Score:</label>
                 <code className="bg-white px-2 py-1 rounded border block">
-                  {debugData.total || calculateCurrentTotal() || "Not available"}
+                  {debugData.total || call.score_total || "Not available"}
                 </code>
               </div>
             </div>
