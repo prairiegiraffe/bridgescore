@@ -48,6 +48,7 @@ export default function OrganizationManagement() {
   const [globalBranding, setGlobalBranding] = useState({
     app_name: 'BridgeScore',
     logo_url: '',
+    favicon_url: '',
     primary_color: '#3B82F6',
     secondary_color: '#1E40AF',
     accent_color: '#10B981'
@@ -578,7 +579,7 @@ export default function OrganizationManagement() {
             </button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mt-4">
             <div className="p-4 border border-gray-200 rounded-lg">
               <h4 className="text-sm font-medium text-gray-700 mb-2">App Name</h4>
               <p className="text-lg font-semibold" style={{ color: globalBranding.primary_color }}>
@@ -592,6 +593,15 @@ export default function OrganizationManagement() {
                 <img src={globalBranding.logo_url} alt="App Logo" className="h-8 w-auto" />
               ) : (
                 <p className="text-sm text-gray-500">No logo set</p>
+              )}
+            </div>
+
+            <div className="p-4 border border-gray-200 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Favicon</h4>
+              {globalBranding.favicon_url ? (
+                <img src={globalBranding.favicon_url} alt="Favicon" className="h-8 w-8" />
+              ) : (
+                <p className="text-sm text-gray-500">No favicon set</p>
               )}
             </div>
             
@@ -1539,10 +1549,60 @@ function GlobalBrandingModal({ branding, onClose, onUpdate }: {
 }) {
   const [appName, setAppName] = useState(branding.app_name || 'BridgeScore');
   const [logoUrl, setLogoUrl] = useState(branding.logo_url || '');
+  const [faviconUrl, setFaviconUrl] = useState(branding.favicon_url || '');
   const [primaryColor, setPrimaryColor] = useState(branding.primary_color || '#3B82F6');
   const [secondaryColor, setSecondaryColor] = useState(branding.secondary_color || '#1E40AF');
   const [accentColor, setAccentColor] = useState(branding.accent_color || '#10B981');
   const [saving, setSaving] = useState(false);
+  const [uploadingFavicon, setUploadingFavicon] = useState(false);
+
+  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/x-icon', 'image/png', 'image/jpeg', 'image/svg+xml'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please upload a valid image file (ICO, PNG, JPG, or SVG)');
+      return;
+    }
+
+    // Validate file size (max 1MB for favicon)
+    if (file.size > 1024 * 1024) {
+      alert('Favicon file size must be less than 1MB');
+      return;
+    }
+
+    setUploadingFavicon(true);
+    try {
+      // Create unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `favicon-${Date.now()}.${fileExt}`;
+      const filePath = `branding/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('public')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('public')
+        .getPublicUrl(filePath);
+
+      setFaviconUrl(urlData.publicUrl);
+    } catch (error) {
+      console.error('Error uploading favicon:', error);
+      alert('Failed to upload favicon. Please try again.');
+    } finally {
+      setUploadingFavicon(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1552,6 +1612,7 @@ function GlobalBrandingModal({ branding, onClose, onUpdate }: {
       await onUpdate({
         app_name: appName.trim(),
         logo_url: logoUrl.trim(),
+        favicon_url: faviconUrl.trim(),
         primary_color: primaryColor,
         secondary_color: secondaryColor,
         accent_color: accentColor
@@ -1603,6 +1664,54 @@ function GlobalBrandingModal({ branding, onClose, onUpdate }: {
                 <img src={logoUrl} alt="Logo Preview" className="h-12 w-auto border border-gray-200 rounded" />
               </div>
             )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Favicon
+            </label>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-3">
+                <input
+                  type="file"
+                  accept=".ico,.png,.jpg,.jpeg,.svg,image/*"
+                  onChange={handleFaviconUpload}
+                  disabled={uploadingFavicon}
+                  className="hidden"
+                  id="favicon-upload"
+                />
+                <label
+                  htmlFor="favicon-upload"
+                  className={`px-4 py-2 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 ${
+                    uploadingFavicon ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {uploadingFavicon ? 'Uploading...' : 'Choose File'}
+                </label>
+                {faviconUrl && (
+                  <div className="flex items-center space-x-2">
+                    <img src={faviconUrl} alt="Favicon" className="h-6 w-6 border border-gray-200 rounded" />
+                    <button
+                      type="button"
+                      onClick={() => setFaviconUrl('')}
+                      className="text-sm text-red-600 hover:text-red-800"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+              <input
+                type="url"
+                value={faviconUrl}
+                onChange={(e) => setFaviconUrl(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                placeholder="Or enter a URL directly"
+              />
+              <p className="text-xs text-gray-500">
+                Upload an ICO, PNG, JPG, or SVG file (max 1MB). This will be shown in browser tabs.
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
