@@ -420,68 +420,28 @@ export default function Team() {
     }
   };
 
-  // Bridge Step Indicators Component for Teams page
-  const BridgeStepIndicators = ({ call }: { call: Call }) => {
-    if (!call || !currentOrg || !currentOrg.bridge_steps) {
-      return null;
-    }
-
-    // Get organization's bridge steps in the configured order
-    const orgSteps = [...(currentOrg.bridge_steps || [])].sort((a: any, b: any) => a.order - b.order);
-    
-    // Create score breakdown in the same format as CallDetail
-    let scoreBreakdown: Array<{key: string, step: any, stepName?: string}> = [];
-    
-    if (Array.isArray(call.score_breakdown)) {
-      scoreBreakdown = call.score_breakdown.map((stepScore: any) => ({
-        key: stepScore?.step || '',
-        step: stepScore,
-        stepName: stepScore?.stepName
-      }));
-    } else if (call.score_breakdown && typeof call.score_breakdown === 'object') {
-      scoreBreakdown = Object.entries(call.score_breakdown)
-        .filter(([key]) => key !== 'total')
-        .map(([key, step]: [string, any]) => ({
-          key,
-          step,
-          stepName: key
-        }));
-    }
-    
-    // Create a map of step scores for easy lookup
-    const stepScoreMap = new Map();
-    scoreBreakdown.forEach(({ key, step }) => {
-      stepScoreMap.set(key, step);
-    });
-
-    const getStepColor = (credit: number) => {
-      if (credit >= 1) return 'bg-green-500';
-      if (credit >= 0.5) return 'bg-yellow-500';
-      return 'bg-red-500';
-    };
-
-    const getStepTextColor = () => {
-      return 'text-white';
-    };
-
+  // Temporary simple placeholder for bridge steps
+  const BridgeStepIndicators = () => {
     return (
       <div className="flex items-center space-x-1">
-        {orgSteps.slice(0, 6).map((orgStep, index) => {
-          const stepScore = stepScoreMap.get(orgStep?.key);
-          const credit = stepScore?.credit ?? 0;
-          const weight = stepScore?.weight ?? 0;
-          const points = stepScore ? (stepScore.credit * weight) : 0;
-          
-          return (
-            <div
-              key={orgStep?.key || index}
-              className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${getStepColor(credit)} ${getStepTextColor()}`}
-              title={`${orgStep?.name || 'Step'}: ${points} points (${credit === 1 ? 'Full' : credit === 0.5 ? 'Partial' : 'None'})`}
-            >
-              {points}
-            </div>
-          );
-        })}
+        <div className="w-6 h-6 rounded bg-gray-300 flex items-center justify-center text-xs font-bold text-white">
+          -
+        </div>
+        <div className="w-6 h-6 rounded bg-gray-300 flex items-center justify-center text-xs font-bold text-white">
+          -
+        </div>
+        <div className="w-6 h-6 rounded bg-gray-300 flex items-center justify-center text-xs font-bold text-white">
+          -
+        </div>
+        <div className="w-6 h-6 rounded bg-gray-300 flex items-center justify-center text-xs font-bold text-white">
+          -
+        </div>
+        <div className="w-6 h-6 rounded bg-gray-300 flex items-center justify-center text-xs font-bold text-white">
+          -
+        </div>
+        <div className="w-6 h-6 rounded bg-gray-300 flex items-center justify-center text-xs font-bold text-white">
+          -
+        </div>
       </div>
     );
   };
@@ -904,7 +864,7 @@ export default function Team() {
                                 </div>
                               </td>
                               <td className="px-4 py-4 text-sm">
-                                <BridgeStepIndicators call={call} />
+                                <BridgeStepIndicators />
                               </td>
                               <td className="px-4 py-4 text-sm">
                                 <span className={`font-semibold ${
