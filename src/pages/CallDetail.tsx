@@ -251,23 +251,42 @@ export default function CallDetail() {
   const renderScoreBreakdown = () => {
     if (!call) return [];
     
+    let scoreBreakdown: any[] = [];
+    
     // New OpenAI format (array of stepScores)
     if (Array.isArray(call.score_breakdown)) {
-      return call.score_breakdown.map((stepScore: any) => ({
+      scoreBreakdown = call.score_breakdown.map((stepScore: any) => ({
         key: stepScore.step,
         step: stepScore,
         stepName: stepScore.stepName
       }));
+    } else {
+      // Old format (object with keys)
+      scoreBreakdown = Object.entries(call.score_breakdown)
+        .filter(([key]) => key !== 'total')
+        .map(([key, step]: [string, any]) => ({
+          key,
+          step,
+          stepName: stepLabels[key as keyof typeof stepLabels]
+        }));
     }
     
-    // Old format (object with keys)
-    return Object.entries(call.score_breakdown)
-      .filter(([key]) => key !== 'total')
-      .map(([key, step]: [string, any]) => ({
-        key,
-        step,
-        stepName: stepLabels[key as keyof typeof stepLabels]
-      }));
+    // Sort according to organization's bridge steps order if available
+    if (currentOrg && currentOrg.bridge_steps) {
+      const orgSteps = [...(currentOrg.bridge_steps || [])].sort((a, b) => a.order - b.order);
+      const stepOrderMap = new Map();
+      orgSteps.forEach((step, index) => {
+        stepOrderMap.set(step.key, index);
+      });
+      
+      scoreBreakdown.sort((a, b) => {
+        const orderA = stepOrderMap.get(a.key) ?? 999;
+        const orderB = stepOrderMap.get(b.key) ?? 999;
+        return orderA - orderB;
+      });
+    }
+    
+    return scoreBreakdown;
   };
 
   const { strengths, improvements } = getCoachingAnalysis();
