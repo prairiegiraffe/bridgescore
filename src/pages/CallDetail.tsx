@@ -366,10 +366,8 @@ export default function CallDetail() {
     
     setSavingAdjustments(true);
     try {
-      // Calculate new total
-      const newTotal = Math.round(
-        adjustedScores.reduce((sum, step) => sum + (step.weight * step.credit), 0)
-      );
+      // Calculate new total (preserve decimals)
+      const newTotal = adjustedScores.reduce((sum, step) => sum + (step.weight * step.credit), 0);
 
       // Update the call with adjusted scores
       const { error } = await supabase
@@ -1234,7 +1232,7 @@ function BridgeStepIndicators({ call, currentOrg, scoreBreakdown }: BridgeStepIn
       {orgSteps.slice(0, 6).map((orgStep, index) => {
         const stepScore = stepScoreMap.get(orgStep.key);
         const credit = stepScore?.credit ?? 0;
-        const points = stepScore ? Math.round(stepScore.credit * stepScore.weight) : 0;
+        const points = stepScore ? (stepScore.credit * stepScore.weight) : 0;
         
         return (
           <div
