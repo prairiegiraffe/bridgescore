@@ -427,18 +427,18 @@ export default function Team() {
     }
 
     // Get organization's bridge steps in the configured order
-    const orgSteps = [...(currentOrg.bridge_steps || [])].sort((a, b) => a.order - b.order);
+    const orgSteps = [...(currentOrg.bridge_steps || [])].sort((a: any, b: any) => a.order - b.order);
     
     // Create score breakdown in the same format as CallDetail
-    let scoreBreakdown: any[] = [];
+    let scoreBreakdown: Array<{key: string, step: any, stepName?: string}> = [];
     
     if (Array.isArray(call.score_breakdown)) {
       scoreBreakdown = call.score_breakdown.map((stepScore: any) => ({
-        key: stepScore.step,
+        key: stepScore?.step || '',
         step: stepScore,
-        stepName: stepScore.stepName
+        stepName: stepScore?.stepName
       }));
-    } else if (call.score_breakdown) {
+    } else if (call.score_breakdown && typeof call.score_breakdown === 'object') {
       scoreBreakdown = Object.entries(call.score_breakdown)
         .filter(([key]) => key !== 'total')
         .map(([key, step]: [string, any]) => ({
@@ -467,15 +467,16 @@ export default function Team() {
     return (
       <div className="flex items-center space-x-1">
         {orgSteps.slice(0, 6).map((orgStep, index) => {
-          const stepScore = stepScoreMap.get(orgStep.key);
+          const stepScore = stepScoreMap.get(orgStep?.key);
           const credit = stepScore?.credit ?? 0;
-          const points = stepScore ? (stepScore.credit * stepScore.weight) : 0;
+          const weight = stepScore?.weight ?? 0;
+          const points = stepScore ? (stepScore.credit * weight) : 0;
           
           return (
             <div
-              key={orgStep.key || index}
+              key={orgStep?.key || index}
               className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${getStepColor(credit)} ${getStepTextColor()}`}
-              title={`${orgStep.name}: ${points} points (${credit === 1 ? 'Full' : credit === 0.5 ? 'Partial' : 'None'})`}
+              title={`${orgStep?.name || 'Step'}: ${points} points (${credit === 1 ? 'Full' : credit === 0.5 ? 'Partial' : 'None'})`}
             >
               {points}
             </div>
