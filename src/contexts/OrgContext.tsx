@@ -11,6 +11,7 @@ interface Organization {
   is_superadmin?: boolean;
   openai_assistant_id?: string;
   openai_vector_store_id?: string;
+  banner_image_url?: string;
 }
 
 interface OrgContextType {
