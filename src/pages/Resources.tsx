@@ -280,9 +280,9 @@ export default function Resources() {
       </div>
 
       {/* Resources Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
         {filteredResources.map((resource) => (
-          <div key={resource.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+          <div key={resource.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow flex flex-col h-full">
             <div className="flex items-start justify-between mb-4">
               <div className="text-3xl">{resource.icon}</div>
               <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
@@ -294,7 +294,7 @@ export default function Resources() {
               {resource.title}
             </h3>
             
-            <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+            <p className="text-gray-600 text-sm mb-4 line-clamp-3 flex-grow">
               {resource.description}
             </p>
             
@@ -304,12 +304,11 @@ export default function Resources() {
                 <span>{formatDate(resource.last_updated)}</span>
               </div>
               
-              {resource.file_size && (
-                <div className="flex justify-between">
-                  <span>File size:</span>
-                  <span>{resource.file_size}</span>
-                </div>
-              )}
+              {/* Always reserve space for file size, even if empty */}
+              <div className="flex justify-between">
+                <span>File size:</span>
+                <span>{resource.file_size || '—'}</span>
+              </div>
               
               <div className="flex justify-between">
                 <span>Downloads:</span>
