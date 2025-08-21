@@ -969,7 +969,6 @@ export default function CallDetail() {
         <CallNotesModal
           callId={call.id}
           callTitle={call.title}
-          callUserId={call.user_id}
           onClose={() => setShowNotesModal(false)}
         />
       )}

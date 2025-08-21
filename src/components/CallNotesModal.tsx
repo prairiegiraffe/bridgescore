@@ -20,11 +20,10 @@ interface CallNote {
 interface CallNotesModalProps {
   callId: string;
   callTitle: string;
-  callUserId: string;
   onClose: () => void;
 }
 
-export default function CallNotesModal({ callId, callTitle, callUserId, onClose }: CallNotesModalProps) {
+export default function CallNotesModal({ callId, callTitle, onClose }: CallNotesModalProps) {
   const { user } = useAuth();
   const { currentOrg } = useOrg();
   const [notes, setNotes] = useState<CallNote[]>([]);
