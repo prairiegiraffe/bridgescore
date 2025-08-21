@@ -835,7 +835,7 @@ export default function CallDetail() {
           {activeTab === 'scorecard' && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Bridge Selling Scorecard
+                Scorecard
               </h3>
               
               {!editingScores ? (
