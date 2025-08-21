@@ -746,43 +746,102 @@ export default function Team() {
         {/* Score Trend Chart */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Score Trend</h3>
-          <div className="flex items-end space-x-2 h-40">
-            {teamMetrics.score_trend.map((score, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center">
-                <div 
-                  className="bg-blue-500 rounded-t-sm w-full transition-all duration-500"
-                  style={{ 
-                    height: score > 0 ? `${Math.max(10, (score / 100) * 100)}%` : '5px',
-                    minHeight: '5px'
-                  }}
-                ></div>
-                <span className="text-xs text-gray-500 mt-2">Week {index + 1}</span>
-                <span className="text-xs font-semibold text-gray-700">{score.toFixed(1)}</span>
-              </div>
-            ))}
+          <div className="relative h-40 mb-8">
+            {/* Chart area */}
+            <div className="absolute inset-0 flex items-end">
+              {teamMetrics.score_trend.map((score, index) => {
+                const maxScore = Math.max(...teamMetrics.score_trend, 100);
+                const height = (score / maxScore) * 100;
+                const isLast = index === teamMetrics.score_trend.length - 1;
+                const nextScore = !isLast ? teamMetrics.score_trend[index + 1] : score;
+                const nextHeight = !isLast ? (nextScore / maxScore) * 100 : height;
+                
+                return (
+                  <div key={index} className="flex-1 relative flex justify-center items-end">
+                    {/* Data point */}
+                    <div 
+                      className="absolute w-3 h-3 bg-blue-500 rounded-full border-2 border-white shadow-sm z-10"
+                      style={{ bottom: `${height}%` }}
+                    ></div>
+                    
+                    {/* Line to next point */}
+                    {!isLast && (
+                      <div 
+                        className="absolute bg-blue-500 origin-left z-0"
+                        style={{
+                          left: '50%',
+                          bottom: `${height}%`,
+                          width: `${100 / (teamMetrics.score_trend.length - 1)}%`,
+                          height: '2px',
+                          transform: `rotate(${Math.atan2(nextHeight - height, 100 / (teamMetrics.score_trend.length - 1)) * 180 / Math.PI}deg)`,
+                        }}
+                      ></div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Labels */}
+            <div className="absolute -bottom-8 left-0 right-0 flex">
+              {teamMetrics.score_trend.map((score, index) => (
+                <div key={index} className="flex-1 text-center">
+                  <div className="text-xs text-gray-500">Week {index + 1}</div>
+                  <div className="text-xs font-semibold text-gray-700">{score.toFixed(1)}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Calls Volume Chart */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Call Volume</h3>
-          <div className="flex items-end space-x-2 h-40">
-            {teamMetrics.calls_trend.map((calls, index) => {
-              const maxCalls = Math.max(...teamMetrics.calls_trend, 1); // Ensure at least 1 to avoid division by 0
-              return (
-                <div key={index} className="flex-1 flex flex-col items-center">
-                  <div 
-                    className="bg-green-500 rounded-t-sm w-full transition-all duration-500"
-                    style={{ 
-                      height: calls > 0 ? `${Math.max(10, (calls / maxCalls) * 100)}%` : '5px',
-                      minHeight: '5px'
-                    }}
-                  ></div>
-                  <span className="text-xs text-gray-500 mt-2">Week {index + 1}</span>
-                  <span className="text-xs font-semibold text-gray-700">{calls}</span>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Weekly Call Volume</h3>
+          <div className="relative h-40 mb-8">
+            {/* Chart area */}
+            <div className="absolute inset-0 flex items-end">
+              {teamMetrics.calls_trend.map((calls, index) => {
+                const maxCalls = Math.max(...teamMetrics.calls_trend, 10);
+                const height = (calls / maxCalls) * 100;
+                const isLast = index === teamMetrics.calls_trend.length - 1;
+                const nextCalls = !isLast ? teamMetrics.calls_trend[index + 1] : calls;
+                const nextHeight = !isLast ? (nextCalls / maxCalls) * 100 : height;
+                
+                return (
+                  <div key={index} className="flex-1 relative flex justify-center items-end">
+                    {/* Data point */}
+                    <div 
+                      className="absolute w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow-sm z-10"
+                      style={{ bottom: `${height}%` }}
+                    ></div>
+                    
+                    {/* Line to next point */}
+                    {!isLast && (
+                      <div 
+                        className="absolute bg-green-500 origin-left z-0"
+                        style={{
+                          left: '50%',
+                          bottom: `${height}%`,
+                          width: `${100 / (teamMetrics.calls_trend.length - 1)}%`,
+                          height: '2px',
+                          transform: `rotate(${Math.atan2(nextHeight - height, 100 / (teamMetrics.calls_trend.length - 1)) * 180 / Math.PI}deg)`,
+                        }}
+                      ></div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Labels */}
+            <div className="absolute -bottom-8 left-0 right-0 flex">
+              {teamMetrics.calls_trend.map((calls, index) => (
+                <div key={index} className="flex-1 text-center">
+                  <div className="text-xs text-gray-500">Week {index + 1}</div>
+                  <div className="text-xs font-semibold text-gray-700">{calls}</div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
         </div>
       </div>
