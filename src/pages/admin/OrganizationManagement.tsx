@@ -105,37 +105,46 @@ export default function OrganizationManagement() {
   const fetchOrganizations = async () => {
     setLoading(true);
     try {
-      // First fetch from organization_details view for most data
-      const { data: orgDetails, error: detailsError } = await (supabase as any)
-        .from('organization_details')
-        .select('*')
+      // SuperAdmins should see ALL organizations, not just the view
+      // Use the same logic as OrgContext.tsx for SuperAdmins
+      const { data: allOrgs, error: allOrgsError } = await (supabase as any)
+        .from('organizations')
+        .select('id, name, domain, primary_color, secondary_color, banner_image_url, bridge_steps, openai_assistant_id, openai_vector_store_id, openai_model, demo_mode, created_at')
         .order('created_at', { ascending: false });
 
-      if (detailsError) throw detailsError;
+      if (allOrgsError) throw allOrgsError;
+
+      // Get member counts for each organization
+      const { data: memberCounts, error: memberCountError } = await (supabase as any)
+        .from('memberships')
+        .select('org_id')
+        .not('org_id', 'is', null);
       
-      // Then fetch demo_mode from organizations table directly
-      const { data: orgSettings, error: settingsError } = await (supabase as any)
-        .from('organizations')
-        .select('id, demo_mode');
+      if (memberCountError) throw memberCountError;
+
+      // Count members per organization
+      const memberCountMap = new Map<string, number>();
+      memberCounts?.forEach((membership: any) => {
+        const count = memberCountMap.get(membership.org_id) || 0;
+        memberCountMap.set(membership.org_id, count + 1);
+      });
+
+      // Add member count to each organization
+      const orgsWithMemberCount = allOrgs?.map((org: any) => ({
+        ...org,
+        member_count: memberCountMap.get(org.id) || 0
+      })) || [];
       
-      if (settingsError) throw settingsError;
-      
-      // Merge the demo_mode into the organization details
-      const mergedData = orgDetails?.map((org: any) => {
-        const settings = orgSettings?.find((s: any) => s.id === org.id);
-        return { ...org, demo_mode: settings?.demo_mode || false };
-      }) || [];
-      
-      setOrganizations(mergedData);
+      setOrganizations(orgsWithMemberCount);
       
       // Update selected org if it exists
-      if (selectedOrg && mergedData.length > 0) {
-        const updatedSelectedOrg = mergedData.find((org: any) => org.id === selectedOrg.id);
+      if (selectedOrg && orgsWithMemberCount.length > 0) {
+        const updatedSelectedOrg = orgsWithMemberCount.find((org: any) => org.id === selectedOrg.id);
         if (updatedSelectedOrg) {
           setSelectedOrg(updatedSelectedOrg);
         }
-      } else if (mergedData.length > 0 && !selectedOrg) {
-        setSelectedOrg(mergedData[0]);
+      } else if (orgsWithMemberCount.length > 0 && !selectedOrg) {
+        setSelectedOrg(orgsWithMemberCount[0]);
       }
     } catch (err) {
       console.error('Error fetching organizations:', err);
