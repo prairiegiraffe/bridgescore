@@ -358,13 +358,61 @@ export default function Team() {
       console.log('Team: Total score:', totalScore, 'Member count:', memberCount, 'Team avg:', teamAvgScore);
       console.log('Team: Total close rate:', totalCloseRate, 'Member count:', memberCount, 'Team close rate:', Math.round(teamCloseRate) + '%');
 
+      // Calculate actual weekly trends from all team calls
+      const calculateWeeklyMetrics = () => {
+        const now = new Date();
+        const fourWeeksAgo = new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000);
+        
+        // Get all team calls from the last 4 weeks
+        const allTeamCalls = teamMembersData.flatMap(member => member.calls || []);
+        const recentCalls = allTeamCalls.filter(call => {
+          const callDate = new Date(call.created_at);
+          return callDate >= fourWeeksAgo;
+        });
+        
+        // Group calls by week
+        const weeklyData = [0, 1, 2, 3].map(weekOffset => {
+          const weekStart = new Date(fourWeeksAgo.getTime() + weekOffset * 7 * 24 * 60 * 60 * 1000);
+          const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+          
+          const weekCalls = recentCalls.filter(call => {
+            const callDate = new Date(call.created_at);
+            return callDate >= weekStart && callDate < weekEnd;
+          });
+          
+          const weekScores = weekCalls.map(call => calculateCallScore(call));
+          const avgScore = weekScores.length > 0 
+            ? weekScores.reduce((sum, score) => sum + score, 0) / weekScores.length 
+            : 0;
+          
+          return {
+            score: Math.round(avgScore * 10) / 10,
+            count: weekCalls.length
+          };
+        });
+        
+        // Ensure we have data for all 4 weeks (use 0 if no calls that week)
+        return {
+          scoreTrend: weeklyData.map((w, index) => {
+            // If no score for this week, use previous week's score or team average
+            if (w.score === 0 && index > 0) {
+              return weeklyData[index - 1].score || teamAvgScore;
+            }
+            return w.score || 0;
+          }),
+          callsTrend: weeklyData.map(w => w.count)
+        };
+      };
+      
+      const { scoreTrend, callsTrend } = calculateWeeklyMetrics();
+      
       const teamMetrics: TeamMetrics = {
         average_score: Math.round(teamAvgScore * 10) / 10,
         total_calls_month: totalCalls,
         close_rate: Math.round(teamCloseRate),
         month_growth: Math.floor(Math.random() * 30) + 10, // Simplified growth calculation
-        score_trend: [teamAvgScore * 0.8, teamAvgScore * 0.9, teamAvgScore * 0.95, teamAvgScore].map(s => Math.round(s * 10) / 10),
-        calls_trend: [totalCalls * 0.7, totalCalls * 0.8, totalCalls * 0.9, totalCalls].map(Math.floor),
+        score_trend: scoreTrend,
+        calls_trend: callsTrend,
         top_performers: teamMembersData.sort((a, b) => b.avg_score - a.avg_score).slice(0, 3),
         isDemo: false
       };
@@ -685,10 +733,13 @@ export default function Team() {
               <div key={index} className="flex-1 flex flex-col items-center">
                 <div 
                   className="bg-blue-500 rounded-t-sm w-full transition-all duration-500"
-                  style={{ height: `${(score / 20) * 100}%` }}
+                  style={{ 
+                    height: score > 0 ? `${Math.max(5, (score / 20) * 100)}%` : '2px',
+                    minHeight: '2px'
+                  }}
                 ></div>
                 <span className="text-xs text-gray-500 mt-2">Week {index + 1}</span>
-                <span className="text-xs font-semibold text-gray-700">{score}</span>
+                <span className="text-xs font-semibold text-gray-700">{score.toFixed(1)}</span>
               </div>
             ))}
           </div>
@@ -698,16 +749,22 @@ export default function Team() {
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Call Volume</h3>
           <div className="flex items-end space-x-2 h-40">
-            {teamMetrics.calls_trend.map((calls, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center">
-                <div 
-                  className="bg-green-500 rounded-t-sm w-full transition-all duration-500"
-                  style={{ height: `${(calls / Math.max(...teamMetrics.calls_trend)) * 100}%` }}
-                ></div>
-                <span className="text-xs text-gray-500 mt-2">Week {index + 1}</span>
-                <span className="text-xs font-semibold text-gray-700">{calls}</span>
-              </div>
-            ))}
+            {teamMetrics.calls_trend.map((calls, index) => {
+              const maxCalls = Math.max(...teamMetrics.calls_trend, 1); // Ensure at least 1 to avoid division by 0
+              return (
+                <div key={index} className="flex-1 flex flex-col items-center">
+                  <div 
+                    className="bg-green-500 rounded-t-sm w-full transition-all duration-500"
+                    style={{ 
+                      height: calls > 0 ? `${Math.max(5, (calls / maxCalls) * 100)}%` : '2px',
+                      minHeight: '2px'
+                    }}
+                  ></div>
+                  <span className="text-xs text-gray-500 mt-2">Week {index + 1}</span>
+                  <span className="text-xs font-semibold text-gray-700">{calls}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
