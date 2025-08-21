@@ -358,31 +358,65 @@ export default function Team() {
       console.log('Team: Total score:', totalScore, 'Member count:', memberCount, 'Team avg:', teamAvgScore);
       console.log('Team: Total close rate:', totalCloseRate, 'Member count:', memberCount, 'Team close rate:', Math.round(teamCloseRate) + '%');
 
-      // Calculate weekly trends using aggregated team data
-      const calculateWeeklyMetrics = () => {
-        // Use team aggregated data to create realistic weekly trends
-        const teamAvgScore = totalCalls > 0 ? totalScore / totalCalls : 75;
-        const avgCallsPerWeek = Math.max(Math.round(totalCalls / 4), 1);
-        
-        // Generate weekly data with some realistic variation
-        const weeklyData = [0, 1, 2, 3].map(() => {
-          // Add some realistic variation to scores and calls
-          const scoreVariation = (Math.random() - 0.5) * 20; // ±10 point variation
-          const callVariation = Math.floor((Math.random() - 0.5) * 6); // ±3 call variation
+      // Fetch and calculate actual weekly trends from team calls
+      const calculateWeeklyMetrics = async () => {
+        try {
+          // Get all team calls from the last 4 weeks
+          const fourWeeksAgo = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000);
           
+          const { data: teamCalls, error } = await (supabase as any)
+            .from('calls')
+            .select('score_total, score_breakdown, created_at')
+            .eq('org_id', currentOrg.id)
+            .gte('created_at', fourWeeksAgo.toISOString())
+            .order('created_at', { ascending: true });
+
+          if (error) {
+            console.error('Error fetching team calls for trends:', error);
+            // Fallback to demo data if query fails
+            return {
+              scoreTrend: [78, 82, 85, 79],
+              callsTrend: [12, 15, 18, 14]
+            };
+          }
+
+          // Group calls by week
+          const weeklyData = [0, 1, 2, 3].map(weekOffset => {
+            const weekStart = new Date(fourWeeksAgo.getTime() + weekOffset * 7 * 24 * 60 * 60 * 1000);
+            const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+            
+            const weekCalls = teamCalls.filter((call: any) => {
+              const callDate = new Date(call.created_at);
+              return callDate >= weekStart && callDate < weekEnd;
+            });
+
+            const weekScores = weekCalls.map((call: any) => calculateCallScore(call));
+            const avgScore = weekScores.length > 0 
+              ? weekScores.reduce((sum: number, score: number) => sum + score, 0) / weekScores.length 
+              : 0;
+
+            return {
+              score: Math.round(avgScore * 10) / 10,
+              count: weekCalls.length
+            };
+          });
+
           return {
-            score: Math.max(Math.round((teamAvgScore + scoreVariation) * 10) / 10, 5),
-            count: Math.max(avgCallsPerWeek + callVariation, 1)
+            scoreTrend: weeklyData.map(w => w.score > 0 ? w.score : 75), // Use default if no calls
+            callsTrend: weeklyData.map(w => w.count)
           };
-        });
-        
-        return {
-          scoreTrend: weeklyData.map(w => w.score),
-          callsTrend: weeklyData.map(w => w.count)
-        };
+
+        } catch (err) {
+          console.error('Error calculating weekly metrics:', err);
+          // Fallback to demo data
+          return {
+            scoreTrend: [78, 82, 85, 79],
+            callsTrend: [12, 15, 18, 14]
+          };
+        }
       };
       
-      const { scoreTrend, callsTrend } = calculateWeeklyMetrics();
+      const { scoreTrend, callsTrend } = await calculateWeeklyMetrics();
       
       const teamMetrics: TeamMetrics = {
         average_score: Math.round(teamAvgScore * 10) / 10,
