@@ -95,6 +95,9 @@ export default function CallNotesModal({ callId, callTitle, onClose }: CallNotes
 
       if (error) throw error;
 
+      // Check if this call is flagged but doesn't have a flag note yet
+      await checkAndCreateLegacyFlagNote();
+
       // Fetch user names for each note
       const notesWithNames = await Promise.all(
         (data || []).map(async (note: CallNote) => {
@@ -108,6 +111,55 @@ export default function CallNotesModal({ callId, callTitle, onClose }: CallNotes
       console.error('Error fetching notes:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkAndCreateLegacyFlagNote = async () => {
+    try {
+      // Get the call details to check if it's flagged
+      const { data: callData, error: callError } = await (supabase as any)
+        .from('calls')
+        .select('flagged_for_review, flag_reason, flagged_by, flagged_at')
+        .eq('id', callId)
+        .single();
+
+      if (callError || !callData?.flagged_for_review || !callData?.flag_reason) return;
+
+      // Check if a flag note already exists
+      const { data: existingFlagNote, error: noteError } = await (supabase as any)
+        .from('call_notes')
+        .select('id')
+        .eq('call_id', callId)
+        .eq('note_type', 'flag')
+        .single();
+
+      if (noteError && noteError.code !== 'PGRST116') {
+        // PGRST116 is "no rows returned" - this is expected if no flag note exists
+        console.error('Error checking for existing flag note:', noteError);
+        return;
+      }
+
+      // If no flag note exists, create one from the legacy flag_reason
+      if (!existingFlagNote) {
+        const { error: insertError } = await (supabase as any)
+          .from('call_notes')
+          .insert({
+            call_id: callId,
+            created_by: callData.flagged_by,
+            created_at: callData.flagged_at || new Date().toISOString(),
+            note_type: 'flag',
+            title: 'Call Flagged for Review',
+            content: callData.flag_reason,
+            is_private: false,
+            visible_to_user: true
+          });
+
+        if (insertError) {
+          console.error('Error creating legacy flag note:', insertError);
+        }
+      }
+    } catch (err) {
+      console.error('Error in checkAndCreateLegacyFlagNote:', err);
     }
   };
 

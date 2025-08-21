@@ -65,6 +65,7 @@ export default function CallDetail() {
   const [showFlagModal, setShowFlagModal] = useState(false);
   const [flagReason, setFlagReason] = useState('');
   const [adjustedByUserName, setAdjustedByUserName] = useState<string | null>(null);
+  const [flaggedByUserName, setFlaggedByUserName] = useState<string | null>(null);
   const [showNotesModal, setShowNotesModal] = useState(false);
 
   useEffect(() => {
@@ -143,6 +144,11 @@ export default function CallDetail() {
       if (data?.manually_adjusted_by) {
         fetchAdjustedByUserName(data.manually_adjusted_by);
       }
+      
+      // Fetch user name if this call was flagged
+      if (data?.flagged_by) {
+        fetchFlaggedByUserName(data.flagged_by);
+      }
     } catch (err) {
       console.error('Error fetching call:', err);
       setError('Failed to load call details.');
@@ -193,6 +199,51 @@ export default function CallDetail() {
     } catch (err) {
       console.error('Error fetching user name:', err);
       setAdjustedByUserName('Unknown User');
+    }
+  };
+
+  const fetchFlaggedByUserName = async (userId: string) => {
+    try {
+      // Try to get user name from auth.users first
+      let { data: userData, error: userError } = await (supabase as any)
+        .from('auth.users')
+        .select('raw_user_meta_data')
+        .eq('id', userId)
+        .single();
+
+      if (userError || !userData?.raw_user_meta_data?.full_name) {
+        // Fallback to profiles table
+        const { data: profileData, error: profileError } = await (supabase as any)
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', userId)
+          .single();
+
+        if (!profileError && profileData) {
+          setFlaggedByUserName(profileData.full_name || profileData.email || 'Unknown User');
+          return;
+        }
+
+        // Last fallback - try to get email from memberships/users view
+        const { data: membershipData, error: membershipError } = await (supabase as any)
+          .from('membership_with_profiles')
+          .select('email, full_name')
+          .eq('user_id', userId)
+          .limit(1)
+          .single();
+
+        if (!membershipError && membershipData) {
+          setFlaggedByUserName(membershipData.full_name || membershipData.email || 'Unknown User');
+          return;
+        }
+
+        setFlaggedByUserName('Unknown User');
+      } else {
+        setFlaggedByUserName(userData.raw_user_meta_data.full_name);
+      }
+    } catch (err) {
+      console.error('Error fetching flagged by user name:', err);
+      setFlaggedByUserName('Unknown User');
     }
   };
 
@@ -453,6 +504,7 @@ export default function CallDetail() {
     if (!call || !user || !flagReason.trim()) return;
     
     try {
+      // Update the call flags
       const { error } = await supabase
         .from('calls')
         .update({
@@ -464,6 +516,24 @@ export default function CallDetail() {
         .eq('id', call.id);
 
       if (error) throw error;
+
+      // Also create a note in the call_notes table for visibility in the notes system
+      const { error: noteError } = await (supabase as any)
+        .from('call_notes')
+        .insert({
+          call_id: call.id,
+          created_by: user.id,
+          note_type: 'flag',
+          title: 'Call Flagged for Review',
+          content: flagReason.trim(),
+          is_private: false,
+          visible_to_user: true
+        });
+
+      if (noteError) {
+        console.error('Error creating flag note:', noteError);
+        // Don't fail the flag operation if note creation fails
+      }
 
       await fetchCall();
       setShowFlagModal(false);
@@ -958,7 +1028,7 @@ export default function CallDetail() {
           {call.flagged_at && (
             <p className="text-sm text-red-600">
               Flagged on {formatDate(call.flagged_at)}
-              {call.flagged_by && ` by user ${call.flagged_by}`}
+              {call.flagged_by && ` by ${flaggedByUserName || 'Unknown User'}`}
             </p>
           )}
         </div>
