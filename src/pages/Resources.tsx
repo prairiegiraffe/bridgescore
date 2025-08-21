@@ -63,11 +63,21 @@ export default function Resources() {
     try {
       setLoading(true);
       
-      // Fetch resources from database
-      const { data: resourcesData, error } = await supabase
+      // Fetch resources for current organization and global resources
+      let query = supabase
         .from('resources')
         .select('*')
         .order('created_at', { ascending: false });
+
+      if (currentOrg) {
+        // Show resources for this org OR global resources
+        query = query.or(`org_id.eq.${currentOrg.id},is_global.eq.true`);
+      } else {
+        // If no org, only show global resources
+        query = query.eq('is_global', true);
+      }
+
+      const { data: resourcesData, error } = await query;
 
       if (error) {
         throw error;
@@ -381,6 +391,7 @@ export default function Resources() {
             setShowAddModal(false);
             fetchResources();
           }}
+          currentOrg={currentOrg}
         />
       )}
 
@@ -746,7 +757,7 @@ function EditResourceModal({
 }
 
 // Add Resource Modal Component
-function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () => void }) {
+function AddResourceModal({ onClose, onAdd, currentOrg }: { onClose: () => void; onAdd: () => void; currentOrg: any }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -821,7 +832,8 @@ function AddResourceModal({ onClose, onAdd }: { onClose: () => void; onAdd: () =
         category: finalCategory,
         icon,
         resource_type: resourceType,
-        is_global: true,
+        org_id: currentOrg?.id || null,
+        is_global: false, // Make org-specific by default
         download_count: 0
       };
 
