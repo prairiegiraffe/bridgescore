@@ -1186,7 +1186,7 @@ function OpenAISettingsModal({ organization, onClose, onUpdate, onAutoCreate }: 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
-      <div className="bg-white rounded-lg p-6 max-w-lg w-full">
+      <div className="bg-white rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-semibold mb-2">Configure OpenAI for {organization.name}</h3>
         <p className="text-sm text-gray-600 mb-4">
           Set up AI assistant and vector store for automated call scoring.
