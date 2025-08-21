@@ -63,6 +63,7 @@ export default function CallDetail() {
   const [savingAdjustments, setSavingAdjustments] = useState(false);
   const [showFlagModal, setShowFlagModal] = useState(false);
   const [flagReason, setFlagReason] = useState('');
+  const [adjustedByUserName, setAdjustedByUserName] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCall();
@@ -135,11 +136,61 @@ export default function CallDetail() {
       if (fetchError) throw fetchError;
 
       setCall(data);
+      
+      // Fetch user name if this call was manually adjusted
+      if (data?.manually_adjusted_by) {
+        fetchAdjustedByUserName(data.manually_adjusted_by);
+      }
     } catch (err) {
       console.error('Error fetching call:', err);
       setError('Failed to load call details.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAdjustedByUserName = async (userId: string) => {
+    try {
+      // Try to get user name from auth.users first
+      let { data: userData, error: userError } = await (supabase as any)
+        .from('auth.users')
+        .select('raw_user_meta_data')
+        .eq('id', userId)
+        .single();
+
+      if (userError || !userData?.raw_user_meta_data?.full_name) {
+        // Fallback to profiles table
+        const { data: profileData, error: profileError } = await (supabase as any)
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', userId)
+          .single();
+
+        if (!profileError && profileData) {
+          setAdjustedByUserName(profileData.full_name || profileData.email || 'Unknown User');
+          return;
+        }
+
+        // Last fallback - try to get email from memberships/users view
+        const { data: membershipData, error: membershipError } = await (supabase as any)
+          .from('membership_with_profiles')
+          .select('email, full_name')
+          .eq('user_id', userId)
+          .limit(1)
+          .single();
+
+        if (!membershipError && membershipData) {
+          setAdjustedByUserName(membershipData.full_name || membershipData.email || 'Unknown User');
+          return;
+        }
+
+        setAdjustedByUserName('Unknown User');
+      } else {
+        setAdjustedByUserName(userData.raw_user_meta_data.full_name);
+      }
+    } catch (err) {
+      console.error('Error fetching user name:', err);
+      setAdjustedByUserName('Unknown User');
     }
   };
 
@@ -802,7 +853,7 @@ export default function CallDetail() {
                   <h4 className="text-sm font-medium text-gray-900 mb-2">Adjustment History</h4>
                   <p className="text-sm text-gray-600">
                     Scores were manually adjusted on {formatDate(call.manually_adjusted_at)}
-                    {call.manually_adjusted_by && ` by user ${call.manually_adjusted_by}`}
+                    {call.manually_adjusted_by && ` by ${adjustedByUserName || 'Unknown User'}`}
                   </p>
                 </div>
               )}
