@@ -1281,7 +1281,7 @@ interface AICoachingTabProps {
 function AICoachingTab({ coaching }: AICoachingTabProps) {
   return (
     <div>
-      <h3 className="text-lg font-semibold text-gray-900 mb-6">AI Coaching Feedback</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mb-6">Feedback</h3>
       
       {/* Things They Did Well */}
       <div className="mb-8">
