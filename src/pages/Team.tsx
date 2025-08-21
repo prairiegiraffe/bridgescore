@@ -409,6 +409,8 @@ export default function Team() {
           };
 
           console.log('Team: Weekly trends calculated:', result);
+          console.log('Team: Score trend values:', result.scoreTrend);
+          console.log('Team: Calls trend values:', result.callsTrend);
           return result;
 
         } catch (err) {
