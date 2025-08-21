@@ -752,8 +752,8 @@ export default function Team() {
                 <div 
                   className="bg-blue-500 rounded-t-sm w-full transition-all duration-500"
                   style={{ 
-                    height: score > 0 ? `${Math.max(5, (score / 20) * 100)}%` : '2px',
-                    minHeight: '2px'
+                    height: score > 0 ? `${Math.max(10, (score / 100) * 100)}%` : '5px',
+                    minHeight: '5px'
                   }}
                 ></div>
                 <span className="text-xs text-gray-500 mt-2">Week {index + 1}</span>
@@ -774,8 +774,8 @@ export default function Team() {
                   <div 
                     className="bg-green-500 rounded-t-sm w-full transition-all duration-500"
                     style={{ 
-                      height: calls > 0 ? `${Math.max(5, (calls / maxCalls) * 100)}%` : '2px',
-                      minHeight: '2px'
+                      height: calls > 0 ? `${Math.max(10, (calls / maxCalls) * 100)}%` : '5px',
+                      minHeight: '5px'
                     }}
                   ></div>
                   <span className="text-xs text-gray-500 mt-2">Week {index + 1}</span>
