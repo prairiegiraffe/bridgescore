@@ -169,6 +169,119 @@ serve(async (req) => {
       );
     }
     
+    if (action === 'create_organization_setup') {
+      console.log('Processing organization setup creation request');
+      
+      const { organizationId, organizationName } = requestData;
+      
+      if (!organizationId || !organizationName) {
+        throw new Error('Missing organizationId or organizationName');
+      }
+      
+      const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+      if (!openaiApiKey) {
+        throw new Error('OpenAI API key not configured');
+      }
+      
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+      
+      // Create OpenAI assistant
+      console.log(`Creating assistant for organization: ${organizationName}`);
+      const assistantResponse = await fetch('https://api.openai.com/v1/assistants', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+          'OpenAI-Beta': 'assistants=v2'
+        },
+        body: JSON.stringify({
+          name: `${organizationName} Sales Assistant`,
+          instructions: `You are a sales coaching assistant for ${organizationName}. Your role is to analyze sales call transcripts and provide detailed feedback based on the Bridge Selling methodology. 
+
+Bridge Selling focuses on these key steps:
+1. Pinpoint Pain - Identify the prospect's specific pain points and challenges
+2. Qualify - Determine if the prospect is a good fit (budget, authority, need, timeline)
+3. Build Trust & Rapport - Establish credibility and connection
+4. Present Solution - Show how your solution addresses their specific needs
+5. Handle Objections - Address concerns and objections professionally
+6. Close or Schedule Next Steps - Move the process forward with commitment
+
+For each transcript, you should:
+- Analyze how well the salesperson executed each Bridge Selling step
+- Provide specific examples from the conversation
+- Give actionable coaching advice
+- Score each step based on effectiveness
+- Highlight what they did well and areas for improvement
+
+Be constructive, specific, and focused on helping the salesperson improve their performance using Bridge Selling techniques.`,
+          model: 'gpt-4o-mini',
+          temperature: 0.1
+        })
+      });
+      
+      if (!assistantResponse.ok) {
+        const error = await assistantResponse.text();
+        throw new Error(`Failed to create assistant: ${error}`);
+      }
+      
+      const assistant = await assistantResponse.json();
+      console.log(`Created assistant: ${assistant.id}`);
+      
+      // Create vector store
+      console.log(`Creating vector store for organization: ${organizationName}`);
+      const vectorStoreResponse = await fetch('https://api.openai.com/v1/vector_stores', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+          'OpenAI-Beta': 'assistants=v2'
+        },
+        body: JSON.stringify({
+          name: `${organizationName} Knowledge Base`
+        })
+      });
+      
+      if (!vectorStoreResponse.ok) {
+        const error = await vectorStoreResponse.text();
+        throw new Error(`Failed to create vector store: ${error}`);
+      }
+      
+      const vectorStore = await vectorStoreResponse.json();
+      console.log(`Created vector store: ${vectorStore.id}`);
+      
+      // Update organization with OpenAI IDs
+      const { error: updateError } = await supabase
+        .from('organizations')
+        .update({
+          openai_assistant_id: assistant.id,
+          openai_vector_store_id: vectorStore.id,
+          openai_model: 'gpt-4o-mini'
+        })
+        .eq('id', organizationId);
+      
+      if (updateError) {
+        console.error('Failed to update organization:', updateError);
+        throw new Error(`Failed to update organization: ${updateError.message}`);
+      }
+      
+      console.log(`Successfully created OpenAI setup for ${organizationName}`);
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          assistantId: assistant.id,
+          vectorStoreId: vectorStore.id,
+          organizationId
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+    
     // Handle other requests
     throw new Error('Unsupported request type');
     
