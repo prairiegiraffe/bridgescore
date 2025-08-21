@@ -47,7 +47,6 @@ export default function CallNotesModal({ callId, callTitle, callUserId, onClose 
   // User permissions
   const [userRole, setUserRole] = useState<string>('member');
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [isCallOwner, setIsCallOwner] = useState(false);
 
   useEffect(() => {
     fetchNotes();
@@ -56,9 +55,6 @@ export default function CallNotesModal({ callId, callTitle, callUserId, onClose 
 
   const checkUserPermissions = async () => {
     if (!user || !currentOrg) return;
-    
-    // Check if user is the call owner
-    setIsCallOwner(user.id === callUserId);
     
     // Check SuperAdmin status and role
     try {
