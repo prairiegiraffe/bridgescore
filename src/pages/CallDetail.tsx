@@ -8,6 +8,7 @@ import { FLAGS } from '../lib/flags';
 import { getAssistantVersions, type AssistantVersion } from '../lib/assistants';
 import { rescoreCall } from '../lib/newCallScoring';
 import OrganizationBanner from '../components/OrganizationBanner';
+import CallNotesModal from '../components/CallNotesModal';
 
 interface CallData {
   id: string;
@@ -64,6 +65,7 @@ export default function CallDetail() {
   const [showFlagModal, setShowFlagModal] = useState(false);
   const [flagReason, setFlagReason] = useState('');
   const [adjustedByUserName, setAdjustedByUserName] = useState<string | null>(null);
+  const [showNotesModal, setShowNotesModal] = useState(false);
 
   useEffect(() => {
     fetchCall();
@@ -628,6 +630,18 @@ export default function CallDetail() {
                   </button>
                 )}
                 
+                {/* Notes Button */}
+                <button
+                  onClick={() => setShowNotesModal(true)}
+                  className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 flex items-center"
+                  disabled={editingScores}
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Notes
+                </button>
+                
                 {/* Delete Call Button - SuperAdmin Only */}
                 {isSuperAdmin && (
                   <button
@@ -948,6 +962,16 @@ export default function CallDetail() {
             </p>
           )}
         </div>
+      )}
+
+      {/* Notes Modal */}
+      {showNotesModal && call && (
+        <CallNotesModal
+          callId={call.id}
+          callTitle={call.title}
+          callUserId={call.user_id}
+          onClose={() => setShowNotesModal(false)}
+        />
       )}
 
     </div>
