@@ -304,13 +304,11 @@ export default function Team() {
         // Calculate average score using calculated scores
         const scores = calls?.map((call: any) => calculateCallScore(call)) || [];
         const avgScore = scores.length > 0 ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : 0;
-        console.log('Team: Member', member.email, 'has', calls?.length, 'calls with scores:', scores, 'avg:', avgScore);
         totalScore += avgScore;
 
         // Calculate close rate (calls with score >= 16 out of 20, which is 80%+)
         const closedCalls = calls?.filter((call: any) => calculateCallScore(call) >= 16) || [];
         const closeRate = callsThisMonth > 0 ? (closedCalls.length / callsThisMonth) * 100 : 0;
-        console.log('Team: Member', member.email, 'close rate:', closedCalls.length, '/', callsThisMonth, '=', Math.round(closeRate) + '%');
         totalCloseRate += closeRate;
 
         // Get last call date
@@ -355,8 +353,6 @@ export default function Team() {
       // Calculate team metrics
       const teamAvgScore = memberCount > 0 ? totalScore / memberCount : 0;
       const teamCloseRate = memberCount > 0 ? totalCloseRate / memberCount : 0;
-      console.log('Team: Total score:', totalScore, 'Member count:', memberCount, 'Team avg:', teamAvgScore);
-      console.log('Team: Total close rate:', totalCloseRate, 'Member count:', memberCount, 'Team close rate:', Math.round(teamCloseRate) + '%');
 
       // Fetch and calculate actual weekly trends from team calls
       const calculateWeeklyMetrics = async () => {
@@ -370,8 +366,6 @@ export default function Team() {
             .eq('org_id', currentOrg.id)
             .gte('created_at', fourWeeksAgo.toISOString())
             .order('created_at', { ascending: true });
-
-          console.log('Team: Fetched', teamCalls?.length || 0, 'calls for weekly trends');
 
           if (error) {
             console.error('Error fetching team calls for trends:', error);
@@ -408,9 +402,6 @@ export default function Team() {
             callsTrend: weeklyData.map(w => w.count)
           };
 
-          console.log('Team: Weekly trends calculated:', result);
-          console.log('Team: Score trend values:', result.scoreTrend);
-          console.log('Team: Calls trend values:', result.callsTrend);
           return result;
 
         } catch (err) {
