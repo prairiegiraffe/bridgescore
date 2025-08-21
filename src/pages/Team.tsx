@@ -116,19 +116,15 @@ export default function Team() {
     const isSuperAdmin = currentOrg.is_superadmin || false;
     const userRole = currentOrg.role || null;
     
-    console.log('Team: Using global SuperAdmin status:', isSuperAdmin, 'Role:', userRole, 'from currentOrg:', currentOrg.id);
-    
     // Check if user has access to Team page (Manager level or SuperAdmin)
     const allowedRoles = ['manager'];
     const hasAccess = isSuperAdmin || (userRole && allowedRoles.includes(userRole.toLowerCase()));
     
     if (!hasAccess) {
-      console.log('Team access denied: User role is', userRole, 'SuperAdmin:', isSuperAdmin);
+      console.warn('Team access denied: User role is', userRole, 'SuperAdmin:', isSuperAdmin);
       navigate('/dashboard');
       return;
     }
-    
-    console.log('Team access granted: User role is', userRole, 'SuperAdmin:', isSuperAdmin);
     setMemberRole(userRole);
   };
 
@@ -149,15 +145,12 @@ export default function Team() {
         throw orgError;
       }
 
-      console.log('Organization demo_mode status:', orgData?.demo_mode, 'for org:', currentOrg.name);
 
       if (orgData?.demo_mode === true) {
         // Use mock data for demo mode
-        console.log('Using demo data for team dashboard');
         await fetchDemoData();
       } else {
         // Fetch live data from database
-        console.log('Using live data for team dashboard');
         await fetchLiveData();
       }
     } catch (err) {

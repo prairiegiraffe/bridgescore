@@ -17,8 +17,10 @@ export default function Sidebar() {
   const [showOrgMenu, setShowOrgMenu] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // SuperAdmin status and role now come directly from OrgContext
-  console.log('Sidebar: Using global SuperAdmin status:', isSuperAdmin, 'Role:', userRole, 'from currentOrg:', currentOrg?.id);
+  // Debug auth flow only when there are issues
+  if (!currentOrg && userRole) {
+    console.warn('Sidebar: User has role but no current org:', userRole);
+  }
 
   const handleSignOut = async () => {
     await signOut();

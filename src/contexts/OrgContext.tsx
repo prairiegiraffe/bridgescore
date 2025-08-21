@@ -57,7 +57,6 @@ export function OrgProvider({ children }: { children: ReactNode }) {
         .single();
 
       const isSuperAdmin = superAdminCheck?.is_superadmin || false;
-      console.log('User is SuperAdmin:', isSuperAdmin);
 
       if (isSuperAdmin) {
         // SuperAdmins can see ALL organizations
@@ -90,7 +89,6 @@ export function OrgProvider({ children }: { children: ReactNode }) {
           bridge_steps: org.bridge_steps,
         })) || [];
 
-        console.log('SuperAdmin - All organizations:', orgs);
         setOrganizations(orgs);
 
         // Auto-select first org if none selected
@@ -118,8 +116,6 @@ export function OrgProvider({ children }: { children: ReactNode }) {
 
         if (fetchError) throw fetchError;
 
-        console.log('Regular user - Fetched memberships:', data);
-        
         const orgs = data?.map((membership: any) => ({
           id: membership.organization.id,
           name: membership.organization.name,
@@ -132,7 +128,10 @@ export function OrgProvider({ children }: { children: ReactNode }) {
           bridge_steps: membership.organization.bridge_steps,
         })) || [];
 
-        console.log('Regular user - Processed orgs:', orgs);
+        // Only log when there are issues
+        if (orgs.length === 0) {
+          console.warn('User has no organization memberships');
+        }
         setOrganizations(orgs);
         
         // Auto-select first org if none selected
