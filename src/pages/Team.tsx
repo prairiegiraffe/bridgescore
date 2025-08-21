@@ -371,6 +371,8 @@ export default function Team() {
             .gte('created_at', fourWeeksAgo.toISOString())
             .order('created_at', { ascending: true });
 
+          console.log('Team: Fetched', teamCalls?.length || 0, 'calls for weekly trends');
+
           if (error) {
             console.error('Error fetching team calls for trends:', error);
             // Fallback to demo data if query fails
@@ -401,10 +403,13 @@ export default function Team() {
             };
           });
 
-          return {
+          const result = {
             scoreTrend: weeklyData.map(w => w.score > 0 ? w.score : 75), // Use default if no calls
             callsTrend: weeklyData.map(w => w.count)
           };
+
+          console.log('Team: Weekly trends calculated:', result);
+          return result;
 
         } catch (err) {
           console.error('Error calculating weekly metrics:', err);
@@ -723,7 +728,6 @@ export default function Team() {
           <div className="flex items-center">
             <div className="p-2 bg-orange-100 rounded-lg">
               <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M trending-up" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
             </div>
