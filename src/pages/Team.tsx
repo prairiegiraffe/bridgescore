@@ -422,6 +422,9 @@ export default function Team() {
 
   // Bridge Step Indicators - Safe implementation
   const BridgeStepIndicators = ({ call }: { call: Call }) => {
+    // Get organization's bridge steps configuration
+    const orgBridgeSteps = currentOrg?.bridge_steps || [];
+    
     // Simple score breakdown processing
     const getStepScores = () => {
       const defaultScores = [0, 0, 0, 0, 0, 0];
@@ -452,6 +455,20 @@ export default function Team() {
       }
     };
 
+    // Get the background color for each step based on score vs weight
+    const getStepColor = (score: number, stepIndex: number) => {
+      // Get the weight for this step from organization config
+      const stepWeight = orgBridgeSteps[stepIndex]?.weight || 5; // Default to 5 if not found
+      
+      if (score === 0) {
+        return 'bg-red-500'; // Red for zero points
+      } else if (score >= stepWeight) {
+        return 'bg-green-500'; // Green for full points
+      } else {
+        return 'bg-yellow-500'; // Yellow for partial points
+      }
+    };
+
     const stepScores = getStepScores();
 
     return (
@@ -459,8 +476,8 @@ export default function Team() {
         {stepScores.map((score, index) => (
           <div
             key={index}
-            className="w-6 h-6 rounded bg-blue-500 flex items-center justify-center text-xs font-bold text-white"
-            title={`Step ${index + 1}: ${score} points`}
+            className={`w-6 h-6 rounded ${getStepColor(score, index)} flex items-center justify-center text-xs font-bold text-white`}
+            title={`Step ${index + 1}: ${score} points (Max: ${orgBridgeSteps[index]?.weight || 5})`}
           >
             {score}
           </div>
