@@ -813,7 +813,7 @@ export default function CallDetail() {
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                AI Reasoning
+                Reasoning
               </button>
             )}
             {isSuperAdmin && call.openai_raw_response && (
@@ -861,7 +861,7 @@ export default function CallDetail() {
                       <p className="text-sm text-gray-600">{step.notes}</p>
                       {step.reasoning && (
                         <div className="mt-3 pt-3 border-t border-gray-100">
-                          <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">AI Reasoning</h5>
+                          <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Reasoning</h5>
                           <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">{step.reasoning}</p>
                         </div>
                       )}
@@ -921,7 +921,7 @@ export default function CallDetail() {
                         
                         {step.reasoning && (
                           <div className="mt-3 pt-3 border-t border-gray-200">
-                            <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Original AI Reasoning</h5>
+                            <h5 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Original Reasoning</h5>
                             <p className="text-sm text-gray-700 bg-gray-100 p-3 rounded">{step.reasoning}</p>
                           </div>
                         )}
@@ -1069,7 +1069,7 @@ function AIReasoningTab({ rawResponse }: AIReasoningTabProps) {
     return (
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          AI Reasoning
+          Reasoning
         </h3>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-red-700">Failed to parse OpenAI response data.</p>
@@ -1085,7 +1085,7 @@ function AIReasoningTab({ rawResponse }: AIReasoningTabProps) {
   return (
     <div>
       <h3 className="text-lg font-semibold text-gray-900 mb-4">
-        AI Reasoning
+        Reasoning
       </h3>
       <div className="space-y-6">
         {parsedResponse.steps && parsedResponse.steps.map((step: any, index: number) => (
