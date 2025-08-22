@@ -737,7 +737,7 @@ export default function CallDetail() {
             )}
             
             {/* User Actions - Available to non-manager users and super admins */}
-            {(memberRole !== 'manager' || memberRole === 'superadmin') && (
+            {memberRole !== 'manager' && (
               <div className="flex space-x-2">
                 {/* Flag for Review Button */}
                 {!call.flagged_for_review ? (
